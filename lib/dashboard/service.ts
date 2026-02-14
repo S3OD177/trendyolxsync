@@ -26,7 +26,7 @@ export interface DashboardRowDTO {
 const toNumber = (value: unknown) => (value === null || value === undefined ? null : Number(value));
 
 export async function buildDashboardRows() {
-  const products = await prisma.product.findMany({
+  let products = await prisma.product.findMany({
     where: { active: true },
     include: {
       snapshots: {
@@ -40,6 +40,22 @@ export async function buildDashboardRows() {
     },
     orderBy: { updatedAt: "desc" }
   });
+
+  if (!products.length) {
+    products = await prisma.product.findMany({
+      include: {
+        snapshots: {
+          orderBy: { checkedAt: "desc" },
+          take: 1
+        },
+        priceChanges: {
+          orderBy: { createdAt: "desc" },
+          take: 20
+        }
+      },
+      orderBy: { updatedAt: "desc" }
+    });
+  }
 
   const rows: DashboardRowDTO[] = [];
 

@@ -80,11 +80,18 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const [dbTotalProducts, dbActiveProducts] = await Promise.all([
+      prisma.product.count(),
+      prisma.product.count({ where: { active: true } })
+    ]);
+
     return NextResponse.json(
       {
         ok: true,
         totalSynced,
         pagesFetched,
+        dbTotalProducts,
+        dbActiveProducts,
         sellerId: trendyolClient.getSellerId(),
         storeFrontCode: trendyolClient.getStoreFrontCode()
       },
