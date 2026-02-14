@@ -31,6 +31,19 @@ function toNumber(value: unknown, fallback = 0) {
   return Number.isFinite(number) ? number : fallback;
 }
 
+async function readJsonResponse(response: Response): Promise<Record<string, any>> {
+  const raw = await response.text();
+  if (!raw.trim()) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(raw) as Record<string, any>;
+  } catch {
+    throw new Error(`Invalid response payload (${response.status})`);
+  }
+}
+
 export function SettingsClient() {
   const { toast } = useToast();
   const [form, setForm] = useState<GlobalSettingsForm | null>(null);
@@ -43,7 +56,7 @@ export function SettingsClient() {
       setLoading(true);
       try {
         const response = await fetch("/api/settings", { cache: "no-store" });
-        const data = await response.json();
+        const data = await readJsonResponse(response);
 
         if (!response.ok) {
           throw new Error(data.error || "Failed to load settings");
@@ -95,7 +108,7 @@ export function SettingsClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form)
       });
-      const data = await response.json();
+      const data = await readJsonResponse(response);
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to save settings");

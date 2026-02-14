@@ -74,6 +74,19 @@ const toNumber = (value: unknown, fallback = 0) => {
   return Number.isFinite(number) ? number : fallback;
 };
 
+async function readJsonResponse<T>(response: Response): Promise<T> {
+  const raw = await response.text();
+  if (!raw.trim()) {
+    return {} as T;
+  }
+
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    throw new Error(`Invalid response payload (${response.status})`);
+  }
+}
+
 function computeProfitAtPrice(price: number, settings: ProductDetailsPayload["effectiveSettings"]) {
   const commission = price * settings.commissionRate;
   const serviceFee =
@@ -106,13 +119,14 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
   const load = useCallback(async () => {
     try {
       const response = await fetch(`/api/products/${productId}/details`, { cache: "no-store" });
-      const data = await response.json();
+      const data = await readJsonResponse<ProductDetailsPayload | { error?: string }>(response);
       if (!response.ok) {
-        throw new Error(data.error || "Failed to load details");
+        throw new Error(("error" in data ? data.error : undefined) || "Failed to load details");
       }
 
-      setPayload(data);
-      setSimulationPrice(String(data.breakEven.toFixed(2)));
+      const payload = data as ProductDetailsPayload;
+      setPayload(payload);
+      setSimulationPrice(String(payload.breakEven.toFixed(2)));
     } catch (error) {
       toast({
         title: "Failed to load product",
@@ -184,7 +198,7 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
         body: JSON.stringify(body)
       });
 
-      const data = await response.json();
+      const data = await readJsonResponse<{ error?: string }>(response);
       if (!response.ok) {
         throw new Error(data.error || "Failed to save settings");
       }

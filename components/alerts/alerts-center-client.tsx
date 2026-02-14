@@ -27,6 +27,19 @@ const severityVariant = {
   CRITICAL: "destructive"
 } as const;
 
+async function readJsonResponse(response: Response): Promise<Record<string, any>> {
+  const raw = await response.text();
+  if (!raw.trim()) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(raw) as Record<string, any>;
+  } catch {
+    throw new Error(`Invalid response payload (${response.status})`);
+  }
+}
+
 export function AlertsCenterClient() {
   const { toast } = useToast();
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
@@ -37,7 +50,7 @@ export function AlertsCenterClient() {
     setLoading(true);
     try {
       const response = await fetch("/api/alerts", { cache: "no-store" });
-      const data = await response.json();
+      const data = await readJsonResponse(response);
       if (!response.ok) {
         throw new Error(data.error || "Failed to fetch alerts");
       }
@@ -65,7 +78,7 @@ export function AlertsCenterClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ alertId })
       });
-      const data = await response.json();
+      const data = await readJsonResponse(response);
       if (!response.ok) {
         throw new Error(data.error || "Failed to mark alert as read");
       }

@@ -40,6 +40,19 @@ interface LossGuardInfo {
   projectedProfit: number;
 }
 
+async function readJsonResponse(response: Response): Promise<Record<string, any>> {
+  const raw = await response.text();
+  if (!raw.trim()) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(raw) as Record<string, any>;
+  } catch {
+    throw new Error(`Invalid response payload (${response.status})`);
+  }
+}
+
 export function DashboardClient() {
   const { toast } = useToast();
   const [rows, setRows] = useState<DashboardRow[]>([]);
@@ -69,16 +82,7 @@ export function DashboardClient() {
       });
 
       const response = await fetch(`/api/dashboard?${params.toString()}`, { cache: "no-store" });
-      const raw = await response.text();
-      let data: { error?: string; rows?: DashboardRow[] } = {};
-
-      if (raw.trim().length > 0) {
-        try {
-          data = JSON.parse(raw) as { error?: string; rows?: DashboardRow[] };
-        } catch {
-          throw new Error(`Dashboard API returned non-JSON response (${response.status})`);
-        }
-      }
+      const data = (await readJsonResponse(response)) as { error?: string; rows?: DashboardRow[] };
 
       if (!response.ok) {
         throw new Error(data?.error || `Failed to load dashboard (${response.status})`);
@@ -142,7 +146,7 @@ export function DashboardClient() {
         })
       });
 
-      const data = await response.json();
+      const data = await readJsonResponse(response);
 
       if (response.status === 409 && data.requiresConfirm) {
         setSelectedRow(row);
@@ -190,7 +194,7 @@ export function DashboardClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ maxPages: 5, pageSize: 50 })
       });
-      const data = await response.json();
+      const data = await readJsonResponse(response);
       if (!response.ok) {
         throw new Error(data.error || "Sync failed");
       }
