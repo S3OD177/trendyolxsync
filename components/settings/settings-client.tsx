@@ -137,13 +137,16 @@ export function SettingsClient() {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="surface-panel">
         <CardHeader>
-          <CardTitle>Integration Status</CardTitle>
+          <CardTitle className="text-lg text-slate-900">Integration Status</CardTitle>
+          <p className="text-sm text-slate-500">
+            Validate credentials and defaults used across all monitored products.
+          </p>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2">
-          <div className="flex items-center justify-between rounded-md border p-3">
-            <span>Trendyol API</span>
+          <div className="surface-muted flex items-center justify-between p-3">
+            <span className="font-medium text-slate-700">Trendyol API</span>
             <Badge variant={integrations.trendyolConfigured ? "success" : "destructive"}>
               {integrations.trendyolConfigured ? "Configured" : "Missing"}
             </Badge>
@@ -151,9 +154,9 @@ export function SettingsClient() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="surface-panel">
         <CardHeader>
-          <CardTitle>Global Pricing Defaults (SAR)</CardTitle>
+          <CardTitle className="text-lg text-slate-900">Global Pricing Defaults (SAR)</CardTitle>
         </CardHeader>
         <CardContent>
           <form className="grid gap-4 md:grid-cols-2" onSubmit={submit}>
@@ -163,6 +166,7 @@ export function SettingsClient() {
                 type="number"
                 step="0.0001"
                 value={form.commissionRate}
+                className="bg-white"
                 onChange={(event) =>
                   setForm((current) => (current ? { ...current, commissionRate: Number(event.target.value) } : current))
                 }
@@ -191,6 +195,7 @@ export function SettingsClient() {
                 type="number"
                 step="0.01"
                 value={form.serviceFeeValue}
+                className="bg-white"
                 onChange={(event) =>
                   setForm((current) => (current ? { ...current, serviceFeeValue: Number(event.target.value) } : current))
                 }
@@ -202,6 +207,7 @@ export function SettingsClient() {
                 type="number"
                 step="0.01"
                 value={form.shippingCost}
+                className="bg-white"
                 onChange={(event) =>
                   setForm((current) => (current ? { ...current, shippingCost: Number(event.target.value) } : current))
                 }
@@ -213,6 +219,7 @@ export function SettingsClient() {
                 type="number"
                 step="0.01"
                 value={form.handlingCost}
+                className="bg-white"
                 onChange={(event) =>
                   setForm((current) => (current ? { ...current, handlingCost: Number(event.target.value) } : current))
                 }
@@ -224,6 +231,7 @@ export function SettingsClient() {
                 type="number"
                 step="0.01"
                 value={form.vatRate}
+                className="bg-white"
                 onChange={(event) =>
                   setForm((current) => (current ? { ...current, vatRate: Number(event.target.value) } : current))
                 }
@@ -269,6 +277,7 @@ export function SettingsClient() {
                 type="number"
                 step="0.01"
                 value={form.minProfitValue}
+                className="bg-white"
                 onChange={(event) =>
                   setForm((current) => (current ? { ...current, minProfitValue: Number(event.target.value) } : current))
                 }
@@ -280,6 +289,7 @@ export function SettingsClient() {
                 type="number"
                 step="0.01"
                 value={form.undercutStep}
+                className="bg-white"
                 onChange={(event) =>
                   setForm((current) => (current ? { ...current, undercutStep: Number(event.target.value) } : current))
                 }
@@ -291,6 +301,7 @@ export function SettingsClient() {
                 type="number"
                 step="0.01"
                 value={form.alertThresholdSar}
+                className="bg-white"
                 onChange={(event) =>
                   setForm((current) =>
                     current ? { ...current, alertThresholdSar: Number(event.target.value) } : current
@@ -304,6 +315,7 @@ export function SettingsClient() {
                 type="number"
                 step="0.01"
                 value={form.alertThresholdPct}
+                className="bg-white"
                 onChange={(event) =>
                   setForm((current) =>
                     current ? { ...current, alertThresholdPct: Number(event.target.value) } : current
@@ -316,6 +328,7 @@ export function SettingsClient() {
               <Input
                 type="number"
                 value={form.cooldownMinutes}
+                className="bg-white"
                 onChange={(event) =>
                   setForm((current) =>
                     current ? { ...current, cooldownMinutes: Number(event.target.value) } : current
@@ -329,6 +342,7 @@ export function SettingsClient() {
                 type="number"
                 step="0.01"
                 value={form.competitorDropPct}
+                className="bg-white"
                 onChange={(event) =>
                   setForm((current) =>
                     current ? { ...current, competitorDropPct: Number(event.target.value) } : current
@@ -337,7 +351,7 @@ export function SettingsClient() {
               />
             </div>
             <div className="md:col-span-2">
-              <Button type="submit" disabled={saving}>
+              <Button type="submit" disabled={saving} className="bg-cyan-700 text-white hover:bg-cyan-800">
                 {saving ? "Saving..." : "Save Settings"}
               </Button>
             </div>

@@ -228,31 +228,31 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="surface-panel">
         <CardHeader>
-          <CardTitle>
+          <CardTitle className="text-lg text-slate-900">
             {payload.product.sku} - {payload.product.title}
           </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-md border p-3">
+          <div className="surface-muted p-3">
             <p className="text-xs text-muted-foreground">Break-even Price</p>
             <p className="text-lg font-semibold">{formatSar(payload.breakEven)}</p>
           </div>
-          <div className="rounded-md border p-3">
+          <div className="surface-muted p-3">
             <p className="text-xs text-muted-foreground">Barcode</p>
             <p className="text-lg font-semibold">{payload.product.barcode || "-"}</p>
           </div>
-          <div className="rounded-md border p-3">
+          <div className="surface-muted p-3">
             <p className="text-xs text-muted-foreground">Listing ID</p>
             <p className="text-lg font-semibold">{payload.product.trendyolProductId || "-"}</p>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="surface-panel">
         <CardHeader>
-          <CardTitle>Price History</CardTitle>
+          <CardTitle className="text-lg text-slate-900">Price History</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[320px] w-full">
@@ -276,9 +276,9 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+        <Card className="surface-panel">
           <CardHeader>
-            <CardTitle>Simulation (SAR)</CardTitle>
+            <CardTitle className="text-lg text-slate-900">Simulation (SAR)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -320,9 +320,9 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="surface-panel">
           <CardHeader>
-            <CardTitle>Recent Alerts</CardTitle>
+            <CardTitle className="text-lg text-slate-900">Recent Alerts</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -347,9 +347,9 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
         </Card>
       </div>
 
-      <Card>
+      <Card className="surface-panel">
         <CardHeader>
-          <CardTitle>Cost & Fee Settings (Per SKU)</CardTitle>
+          <CardTitle className="text-lg text-slate-900">Cost & Fee Settings (Per SKU)</CardTitle>
         </CardHeader>
         <CardContent>
           <form className="grid gap-4 md:grid-cols-3" onSubmit={saveSettings}>

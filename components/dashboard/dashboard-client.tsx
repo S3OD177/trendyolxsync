@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, RefreshCw, Upload } from "lucide-react";
+import { Boxes, Loader2, RefreshCw, ShieldAlert, TriangleAlert, Upload } from "lucide-react";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -220,7 +220,7 @@ export function DashboardClient() {
     {
       key: "sku",
       header: "SKU",
-      cell: (row) => <span className="font-medium">{row.sku}</span>
+      cell: (row) => <span className="font-semibold text-slate-900">{row.sku}</span>
     },
     {
       key: "barcode",
@@ -230,28 +230,42 @@ export function DashboardClient() {
     {
       key: "title",
       header: "Title",
-      cell: (row) => row.title
+      cell: (row) => (
+        <div className="max-w-[320px] text-sm font-medium text-slate-800" title={row.title}>
+          {row.title}
+        </div>
+      )
     },
     {
       key: "listingId",
       header: "Listing ID",
-      cell: (row) => row.listingId || "-"
+      cell: (row) => <span className="text-xs text-slate-500">{row.listingId || "-"}</span>
     },
     {
       key: "ourPrice",
       header: "Our Price",
-      cell: (row) => formatSar(row.ourPrice)
+      cell: (row) => <span className="font-medium text-slate-900">{formatSar(row.ourPrice)}</span>
     },
     {
       key: "competitorMin",
       header: "Competitor Min",
-      cell: (row) => formatSar(row.competitorMinPrice)
+      cell: (row) => <span className="font-medium">{formatSar(row.competitorMinPrice)}</span>
     },
     {
       key: "delta",
       header: "Delta",
-      cell: (row) =>
-        row.deltaSar === null ? "-" : `${formatSar(row.deltaSar)} (${row.deltaPct?.toFixed(2)}%)`
+      cell: (row) => {
+        if (row.deltaSar === null) {
+          return "-";
+        }
+
+        const positive = row.deltaSar > 0;
+        return (
+          <span className={positive ? "font-medium text-red-600" : "font-medium text-emerald-700"}>
+            {formatSar(row.deltaSar)} ({row.deltaPct?.toFixed(2)}%)
+          </span>
+        );
+      }
     },
     {
       key: "buybox",
@@ -266,13 +280,27 @@ export function DashboardClient() {
     {
       key: "margin",
       header: "Margin",
-      cell: (row) =>
-        row.marginSar === null ? "-" : `${formatSar(row.marginSar)} (${row.marginPct?.toFixed(2)}%)`
+      cell: (row) => {
+        if (row.marginSar === null) {
+          return "-";
+        }
+
+        const isRisk = (row.marginPct ?? 0) <= 5;
+        return (
+          <span className={isRisk ? "font-medium text-amber-700" : "font-medium text-emerald-700"}>
+            {formatSar(row.marginSar)} ({row.marginPct?.toFixed(2)}%)
+          </span>
+        );
+      }
     },
     {
       key: "last",
       header: "Last Check",
-      cell: (row) => (row.lastCheckedAt ? new Date(row.lastCheckedAt).toLocaleString() : "-")
+      cell: (row) => (
+        <span className="text-xs text-slate-500">
+          {row.lastCheckedAt ? new Date(row.lastCheckedAt).toLocaleString() : "-"}
+        </span>
+      )
     },
     {
       key: "actions",
@@ -311,53 +339,68 @@ export function DashboardClient() {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Monitored Products</CardTitle>
+        <Card className="metric-card border-cyan-200/70">
+          <CardHeader className="pb-1">
+            <CardTitle className="text-sm font-semibold text-slate-600">Monitored Products</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold">{summary.total}</p>
+            <div className="flex items-center justify-between">
+              <p className="text-3xl font-bold text-slate-900">{summary.total}</p>
+              <Boxes className="h-5 w-5 text-cyan-600" />
+            </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Lost BuyBox</CardTitle>
+        <Card className="metric-card border-red-200/70">
+          <CardHeader className="pb-1">
+            <CardTitle className="text-sm font-semibold text-slate-600">Lost BuyBox</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold text-red-600">{summary.lost}</p>
+            <div className="flex items-center justify-between">
+              <p className="text-3xl font-bold text-red-600">{summary.lost}</p>
+              <ShieldAlert className="h-5 w-5 text-red-500" />
+            </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Low Margin Risk</CardTitle>
+        <Card className="metric-card border-amber-200/70">
+          <CardHeader className="pb-1">
+            <CardTitle className="text-sm font-semibold text-slate-600">Low Margin Risk</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold text-amber-600">{summary.risk}</p>
+            <div className="flex items-center justify-between">
+              <p className="text-3xl font-bold text-amber-600">{summary.risk}</p>
+              <TriangleAlert className="h-5 w-5 text-amber-600" />
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
+      <Card className="surface-panel">
         <CardHeader className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <CardTitle>SKU Monitoring</CardTitle>
+            <div>
+              <CardTitle className="text-lg text-slate-900">SKU Monitoring</CardTitle>
+              <p className="mt-1 text-sm text-slate-500">
+                Live market visibility, safe suggested pricing, and manual updates.
+              </p>
+            </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={loadRows}>
+              <Button variant="outline" onClick={loadRows} className="border-slate-300 bg-white">
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Refresh
               </Button>
-              <Button onClick={syncCatalog}>
+              <Button onClick={syncCatalog} className="bg-cyan-700 text-white hover:bg-cyan-800">
                 <Upload className="mr-2 h-4 w-4" />
                 Sync from Trendyol
               </Button>
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-4">
+          <div className="surface-muted grid gap-3 p-3 md:grid-cols-4">
             <Input
               placeholder="Search SKU/title"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
+              className="bg-white"
             />
             <Select
               value={sort}
