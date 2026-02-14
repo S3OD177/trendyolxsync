@@ -31,4 +31,5 @@ export interface TrendyolClientOptions {
   baseUrl?: string;
   apiKey?: string;
   apiSecret?: string;
+  storeFrontCode?: string;
 }

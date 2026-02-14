@@ -63,6 +63,7 @@ Open: `http://localhost:3000`
 - `TRENDYOL_API_KEY`
 - `TRENDYOL_API_SECRET`
 - Optional `TRENDYOL_USER_AGENT`
+- `TRENDYOL_STOREFRONT_CODE=SA` (Saudi storefront)
 3. Set `APP_PIN` (4 digits, default `3698`)
 4. Set `CRON_SECRET`
 5. Run migration deploy and start app

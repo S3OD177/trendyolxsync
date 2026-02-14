@@ -27,6 +27,7 @@ const envSchema = z.object({
   TRENDYOL_API_TOKEN: z.string().optional(),
   TRENDYOL_BASE_URL: z.string().url().default("https://apigw.trendyol.com"),
   TRENDYOL_USER_AGENT: z.string().optional(),
+  TRENDYOL_STOREFRONT_CODE: z.string().default("SA"),
 
   DEFAULT_VAT_RATE: z
     .string()

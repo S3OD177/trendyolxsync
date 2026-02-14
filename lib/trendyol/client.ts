@@ -18,6 +18,7 @@ class TrendyolClient {
   private apiSecret: string;
   private apiToken?: string;
   private userAgent: string;
+  private storeFrontCode?: string;
 
   constructor(options?: TrendyolClientOptions) {
     const seller = options?.supplierId ?? env.TRENDYOL_SUPPLIER_ID ?? env.TRENDYOL_SELLER_ID ?? "";
@@ -28,6 +29,7 @@ class TrendyolClient {
     this.apiSecret = options?.apiSecret ?? env.TRENDYOL_API_SECRET ?? "";
     this.apiToken = env.TRENDYOL_API_TOKEN;
     this.userAgent = env.TRENDYOL_USER_AGENT || `${seller} - TrendyolBuyBoxGuard`;
+    this.storeFrontCode = options?.storeFrontCode ?? env.TRENDYOL_STOREFRONT_CODE ?? undefined;
   }
 
   isConfigured() {
@@ -43,6 +45,26 @@ class TrendyolClient {
       this.apiToken || Buffer.from(`${this.apiKey}:${this.apiSecret}`).toString("base64");
 
     return `Basic ${token}`;
+  }
+
+  private get defaultHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {
+      Authorization: this.authHeader,
+      "User-Agent": this.userAgent,
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    };
+
+    if (this.storeFrontCode) {
+      headers.storeFrontCode = this.storeFrontCode;
+    }
+
+    return headers;
+  }
+
+  private toNumber(value: unknown): number | null {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
   }
 
   private async request<T>(path: string, init?: RequestInit, retries = 3): Promise<T> {
@@ -66,10 +88,7 @@ class TrendyolClient {
       const response = await fetch(url, {
         ...init,
         headers: {
-          Authorization: this.authHeader,
-          "User-Agent": this.userAgent,
-          Accept: "application/json",
-          "Content-Type": "application/json",
+          ...this.defaultHeaders,
           ...(init?.headers ?? {})
         },
         cache: "no-store"
@@ -113,6 +132,35 @@ class TrendyolClient {
     return [];
   }
 
+  private flattenProductsWithVariants(rows: any[]): any[] {
+    const output: any[] = [];
+
+    for (const row of rows) {
+      const variants = Array.isArray(row?.variants) ? row.variants : [];
+
+      if (!variants.length) {
+        output.push(row);
+        continue;
+      }
+
+      for (const variant of variants) {
+        output.push({
+          ...row,
+          ...variant,
+          __parent: row
+        });
+      }
+    }
+
+    return output;
+  }
+
+  private async fetchProductPayload(path: string) {
+    const response = await this.request<any>(path);
+    const list = this.flattenProductsWithVariants(this.extractListPayload(response));
+    return { response, list };
+  }
+
   private mapProductItem(item: any): TrendyolProductItem | null {
     const sku = String(
       item?.productCode ??
@@ -134,6 +182,8 @@ class TrendyolClient {
       title: String(item?.title ?? item?.name ?? sku),
       productId: item?.productMainId
         ? String(item.productMainId)
+        : item?.contentId
+          ? String(item.contentId)
         : item?.productCode
           ? String(item.productCode)
           : item?.id
@@ -141,6 +191,8 @@ class TrendyolClient {
             : null,
       category: item?.categoryName
         ? String(item.categoryName)
+        : item?.category?.name
+          ? String(item.category.name)
         : item?.category
           ? String(item.category)
           : null,
@@ -149,28 +201,55 @@ class TrendyolClient {
   }
 
   async fetchProducts(page = 0, size = 50): Promise<{ items: TrendyolProductItem[]; total?: number; totalPages?: number }> {
-    const result = await this.request<any>(
-      `/integration/product/sellers/${this.sellerId}/products?page=${page}&size=${size}&supplierId=${this.sellerId}`
-    );
+    const approvedPath = `/integration/product/sellers/${this.sellerId}/products/approved?page=${page}&size=${size}&supplierId=${this.sellerId}`;
+    const legacyPath = `/integration/product/sellers/${this.sellerId}/products?page=${page}&size=${size}&supplierId=${this.sellerId}`;
 
-    const content = this.extractListPayload(result);
-    const items: TrendyolProductItem[] = content
+    let raw: any;
+    let list: any[] = [];
+
+    try {
+      const approved = await this.fetchProductPayload(approvedPath);
+      raw = approved.response;
+      list = approved.list;
+    } catch {
+      const legacy = await this.fetchProductPayload(legacyPath);
+      raw = legacy.response;
+      list = legacy.list;
+    }
+
+    if (!list.length && page === 0) {
+      try {
+        const fallback = await this.fetchProductPayload(legacyPath);
+        if (fallback.list.length) {
+          raw = fallback.response;
+          list = fallback.list;
+        }
+      } catch {
+        // Fallback is best-effort only.
+      }
+    }
+
+    const items: TrendyolProductItem[] = list
       .map((item: any) => this.mapProductItem(item))
       .filter((item: TrendyolProductItem | null): item is TrendyolProductItem => item !== null);
 
     return {
       items,
       total:
-        typeof result?.totalElements === "number"
-          ? result.totalElements
-          : typeof result?.total === "number"
-            ? result.total
+        typeof raw?.totalElements === "number"
+          ? raw.totalElements
+          : typeof raw?.total === "number"
+            ? raw.total
+            : typeof raw?.data?.totalElements === "number"
+              ? raw.data.totalElements
             : undefined,
       totalPages:
-        typeof result?.totalPages === "number"
-          ? result.totalPages
-          : typeof result?.pageCount === "number"
-            ? result.pageCount
+        typeof raw?.totalPages === "number"
+          ? raw.totalPages
+          : typeof raw?.pageCount === "number"
+            ? raw.pageCount
+            : typeof raw?.data?.totalPages === "number"
+              ? raw.data.totalPages
             : undefined
     };
   }
@@ -180,41 +259,141 @@ class TrendyolClient {
     const byBarcode = productRef.barcode ? `&barcode=${encodeURIComponent(productRef.barcode)}` : "";
     const byStockCode = !productRef.barcode && productRef.sku ? `&stockCode=${encodeURIComponent(productRef.sku)}` : "";
 
-    const raw = await this.request<any>(
-      `/integration/product/sellers/${this.sellerId}/products?page=0&size=50&supplierId=${this.sellerId}${byBarcode}${byStockCode}`
-    );
+    const approvedPath = `/integration/product/sellers/${this.sellerId}/products/approved?page=0&size=50&supplierId=${this.sellerId}${byBarcode}${byStockCode}`;
+    const legacyPath = `/integration/product/sellers/${this.sellerId}/products?page=0&size=50&supplierId=${this.sellerId}${byBarcode}${byStockCode}`;
 
-    const content = this.extractListPayload(raw);
-    const item = content.find((candidate: any) => {
+    let raw: any;
+    let list: any[] = [];
+
+    try {
+      const approved = await this.fetchProductPayload(approvedPath);
+      raw = approved.response;
+      list = approved.list;
+    } catch {
+      const legacy = await this.fetchProductPayload(legacyPath);
+      raw = legacy.response;
+      list = legacy.list;
+    }
+
+    const item = list.find((candidate: any) => {
       const stockCode = String(candidate?.stockCode ?? "");
       const productCode = String(candidate?.productCode ?? "");
+      const merchantSku = String(candidate?.merchantSku ?? "");
       const barcode = String(candidate?.barcode ?? "");
       const mainId = String(candidate?.productMainId ?? "");
+      const contentId = String(candidate?.contentId ?? "");
       const id = String(candidate?.id ?? "");
-      return [stockCode, productCode, barcode, mainId, id].includes(String(fallbackRef ?? ""));
-    }) ?? content[0];
+      return [stockCode, productCode, merchantSku, barcode, mainId, contentId, id].includes(
+        String(fallbackRef ?? "")
+      );
+    }) ?? list[0];
+
+    const ourPrice =
+      this.toNumber(item?.salePrice) ??
+      this.toNumber(item?.price) ??
+      this.toNumber(item?.listPrice) ??
+      this.toNumber(item?.discountedPrice);
+
+    const stock =
+      this.toNumber(item?.quantity) ??
+      this.toNumber(item?.stock) ??
+      this.toNumber(item?.stockQuantity);
 
     return {
-      ourPrice: item?.salePrice !== undefined ? Number(item.salePrice) : null,
-      stock: item?.quantity !== undefined ? Number(item.quantity) : null,
+      ourPrice,
+      stock,
       raw
     };
   }
 
-  async fetchCompetitorPrices(_productRef: {
+  async fetchCompetitorPrices(productRef: {
     sku?: string;
     barcode?: string;
     productId?: string;
   }): Promise<TrendyolCompetitorData> {
-    return {
-      competitorMinPrice: null,
-      competitorCount: null,
-      buyboxSellerId: null,
-      buyboxStatus: "UNKNOWN",
-      raw: {
-        note: "Competitor endpoint is not available in this integration profile"
-      }
-    };
+    const reference = productRef.barcode || productRef.sku;
+
+    if (!reference) {
+      return {
+        competitorMinPrice: null,
+        competitorCount: null,
+        buyboxSellerId: null,
+        buyboxStatus: "UNKNOWN",
+        raw: { note: "No barcode/sku provided for buybox lookup" }
+      };
+    }
+
+    try {
+      const raw = await this.request<any>(
+        `/integration/product/sellers/${this.sellerId}/products/buybox-information`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            barcodes: [reference],
+            supplierId: this.sellerId
+          })
+        }
+      );
+
+      const entries = this.extractListPayload(raw);
+      const entry = entries.find((item: any) =>
+        [String(item?.barcode ?? ""), String(item?.stockCode ?? "")].includes(String(reference))
+      ) ?? entries[0] ?? raw;
+
+      const offerRows: any[] = Array.isArray(entry?.offers)
+        ? entry.offers
+        : Array.isArray(entry?.sellers)
+          ? entry.sellers
+          : [];
+
+      const minOfferPrice = offerRows
+        .map((offer) =>
+          this.toNumber(offer?.price ?? offer?.salePrice ?? offer?.buyboxPrice ?? offer?.amount)
+        )
+        .filter((value): value is number => value !== null)
+        .reduce<number | null>((min, price) => (min === null || price < min ? price : min), null);
+
+      const competitorMinPrice =
+        this.toNumber(
+          entry?.buyboxPrice ?? entry?.competitorMinPrice ?? entry?.minimumPrice ?? entry?.price
+        ) ?? minOfferPrice;
+
+      const buyboxSellerId =
+        entry?.buyboxSellerId?.toString?.() ??
+        entry?.winnerSellerId?.toString?.() ??
+        entry?.sellerId?.toString?.() ??
+        entry?.buyboxSeller?.sellerId?.toString?.() ??
+        null;
+
+      const competitorCount =
+        this.toNumber(entry?.competitorCount ?? entry?.sellerCount) ??
+        (offerRows.length ? offerRows.length : null);
+
+      const buyboxStatus = buyboxSellerId
+        ? String(buyboxSellerId) === String(this.sellerId)
+          ? "WIN"
+          : "LOSE"
+        : "UNKNOWN";
+
+      return {
+        competitorMinPrice,
+        competitorCount,
+        buyboxSellerId,
+        buyboxStatus,
+        raw
+      };
+    } catch (error) {
+      return {
+        competitorMinPrice: null,
+        competitorCount: null,
+        buyboxSellerId: null,
+        buyboxStatus: "UNKNOWN",
+        raw: {
+          note: "Buybox endpoint unavailable",
+          error: error instanceof Error ? error.message : "unknown"
+        }
+      };
+    }
   }
 
   async updatePrice(barcodeOrSku: string, newPrice: number): Promise<TrendyolPriceUpdateResponse> {
@@ -230,7 +409,7 @@ class TrendyolClient {
     };
 
     const raw = await this.request<any>(
-      `/integration/product/sellers/${this.sellerId}/products/price-and-inventory`,
+      `/integration/inventory/sellers/${this.sellerId}/products/price-and-inventory`,
       {
         method: "POST",
         body: JSON.stringify(payload)
