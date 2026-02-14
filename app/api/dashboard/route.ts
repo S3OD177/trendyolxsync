@@ -5,9 +5,14 @@ import { NO_STORE_HEADERS } from "@/lib/http/no-store";
 
 export const dynamic = "force-dynamic";
 
+const parseBooleanParam = z
+  .union([z.boolean(), z.literal("true"), z.literal("false")])
+  .transform((value) => value === true || value === "true")
+  .optional();
+
 const querySchema = z.object({
-  lostBuyboxOnly: z.coerce.boolean().optional(),
-  lowMarginRisk: z.coerce.boolean().optional(),
+  lostBuyboxOnly: parseBooleanParam,
+  lowMarginRisk: parseBooleanParam,
   search: z.string().optional(),
   sort: z.enum(["latest", "largest_delta", "low_margin"]).optional()
 });
