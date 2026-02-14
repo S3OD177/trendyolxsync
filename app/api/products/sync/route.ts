@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { NO_STORE_HEADERS } from "@/lib/http/no-store";
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
       }
 
       for (const item of result.items) {
-        await prisma.product.upsert({
+        const savedProduct = await prisma.product.upsert({
           where: { sku: item.sku },
           update: {
             barcode: item.barcode,
@@ -70,6 +71,22 @@ export async function POST(request: NextRequest) {
             }
           }
         });
+
+        if (item.ourPrice !== null && item.ourPrice !== undefined) {
+          await prisma.priceSnapshot.create({
+            data: {
+              productId: savedProduct.id,
+              ourPrice: item.ourPrice,
+              competitorMinPrice: null,
+              competitorCount: null,
+              buyboxStatus: "UNKNOWN",
+              rawPayloadJson: {
+                source: "catalog_sync",
+                item: item.raw ?? item
+              } as Prisma.InputJsonValue
+            }
+          });
+        }
         totalSynced += 1;
       }
 

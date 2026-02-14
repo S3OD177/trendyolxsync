@@ -197,10 +197,20 @@ export class TrendyolClient {
         ? String(item.categoryName)
         : item?.category?.name
           ? String(item.category.name)
-        : item?.category
-          ? String(item.category)
-          : null,
-      active: item?.archived === true ? false : true
+          : item?.category
+            ? String(item.category)
+            : null,
+      active: item?.archived === true ? false : true,
+      ourPrice:
+        this.toNumber(item?.salePrice) ??
+        this.toNumber(item?.price) ??
+        this.toNumber(item?.listPrice) ??
+        this.toNumber(item?.discountedPrice),
+      stock:
+        this.toNumber(item?.quantity) ??
+        this.toNumber(item?.stock) ??
+        this.toNumber(item?.stockQuantity),
+      raw: item
     };
   }
 

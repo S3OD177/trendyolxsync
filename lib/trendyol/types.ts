@@ -5,6 +5,9 @@ export interface TrendyolProductItem {
   productId?: string | null;
   category?: string | null;
   active: boolean;
+  ourPrice?: number | null;
+  stock?: number | null;
+  raw?: unknown;
 }
 
 export interface TrendyolPriceStock {

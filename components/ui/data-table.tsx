@@ -17,7 +17,7 @@ interface DataTableProps<T> {
 
 export function DataTable<T>({ columns, data, getRowId, emptyText = "No records." }: DataTableProps<T>) {
   return (
-    <Table>
+    <Table className="min-w-[1100px]">
       <TableHeader>
         <TableRow>
           {columns.map((column) => (
@@ -30,7 +30,7 @@ export function DataTable<T>({ columns, data, getRowId, emptyText = "No records.
       <TableBody>
         {data.length === 0 ? (
           <TableRow>
-            <TableCell colSpan={columns.length} className="text-center text-sm text-muted-foreground">
+            <TableCell colSpan={columns.length} className="py-12 text-center text-sm text-muted-foreground">
               {emptyText}
             </TableCell>
           </TableRow>
