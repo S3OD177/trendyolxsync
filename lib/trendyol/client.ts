@@ -91,28 +91,87 @@ class TrendyolClient {
     throw new Error("Trendyol request exhausted retries");
   }
 
+  private extractListPayload(result: any): any[] {
+    if (Array.isArray(result)) {
+      return result;
+    }
+
+    const direct = [result?.content, result?.items, result?.products];
+    for (const candidate of direct) {
+      if (Array.isArray(candidate)) {
+        return candidate;
+      }
+    }
+
+    const nested = [result?.data?.content, result?.data?.items, result?.data?.products];
+    for (const candidate of nested) {
+      if (Array.isArray(candidate)) {
+        return candidate;
+      }
+    }
+
+    return [];
+  }
+
+  private mapProductItem(item: any): TrendyolProductItem | null {
+    const sku = String(
+      item?.productCode ??
+        item?.stockCode ??
+        item?.merchantSku ??
+        item?.productMainId ??
+        item?.barcode ??
+        item?.id ??
+        ""
+    ).trim();
+
+    if (!sku) {
+      return null;
+    }
+
+    return {
+      sku,
+      barcode: item?.barcode ? String(item.barcode) : null,
+      title: String(item?.title ?? item?.name ?? sku),
+      productId: item?.productMainId
+        ? String(item.productMainId)
+        : item?.productCode
+          ? String(item.productCode)
+          : item?.id
+            ? String(item.id)
+            : null,
+      category: item?.categoryName
+        ? String(item.categoryName)
+        : item?.category
+          ? String(item.category)
+          : null,
+      active: item?.archived === true ? false : true
+    };
+  }
+
   async fetchProducts(page = 0, size = 50): Promise<{ items: TrendyolProductItem[]; total?: number; totalPages?: number }> {
     const result = await this.request<any>(
       `/integration/product/sellers/${this.sellerId}/products?page=${page}&size=${size}&supplierId=${this.sellerId}`
     );
 
-    const content = Array.isArray(result?.content) ? result.content : [];
-
+    const content = this.extractListPayload(result);
     const items: TrendyolProductItem[] = content
-      .map((item: any) => ({
-        sku: String(item?.stockCode ?? item?.productMainId ?? item?.barcode ?? ""),
-        barcode: item?.barcode ? String(item.barcode) : null,
-        title: String(item?.title ?? "Untitled"),
-        productId: item?.productMainId ? String(item.productMainId) : null,
-        category: item?.categoryName ? String(item.categoryName) : null,
-        active: item?.archived === true ? false : true
-      }))
-      .filter((item: TrendyolProductItem) => Boolean(item.sku));
+      .map((item: any) => this.mapProductItem(item))
+      .filter((item: TrendyolProductItem | null): item is TrendyolProductItem => item !== null);
 
     return {
       items,
-      total: typeof result?.totalElements === "number" ? result.totalElements : undefined,
-      totalPages: typeof result?.totalPages === "number" ? result.totalPages : undefined
+      total:
+        typeof result?.totalElements === "number"
+          ? result.totalElements
+          : typeof result?.total === "number"
+            ? result.total
+            : undefined,
+      totalPages:
+        typeof result?.totalPages === "number"
+          ? result.totalPages
+          : typeof result?.pageCount === "number"
+            ? result.pageCount
+            : undefined
     };
   }
 
@@ -125,12 +184,14 @@ class TrendyolClient {
       `/integration/product/sellers/${this.sellerId}/products?page=0&size=50&supplierId=${this.sellerId}${byBarcode}${byStockCode}`
     );
 
-    const content = Array.isArray(raw?.content) ? raw.content : [];
+    const content = this.extractListPayload(raw);
     const item = content.find((candidate: any) => {
       const stockCode = String(candidate?.stockCode ?? "");
+      const productCode = String(candidate?.productCode ?? "");
       const barcode = String(candidate?.barcode ?? "");
       const mainId = String(candidate?.productMainId ?? "");
-      return [stockCode, barcode, mainId].includes(String(fallbackRef ?? ""));
+      const id = String(candidate?.id ?? "");
+      return [stockCode, productCode, barcode, mainId, id].includes(String(fallbackRef ?? ""));
     }) ?? content[0];
 
     return {
