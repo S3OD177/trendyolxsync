@@ -1,47 +1,120 @@
-# trendyolxsync
+# Trendyol BuyBox Guard
 
-Utilities for syncing Trendyol marketplace data into PostgreSQL.
+Production-ready Next.js 14 admin app for monitoring Trendyol BuyBox competitiveness and safely applying **manual** price updates.
 
-## Docs
+Core capabilities:
+- Poll Trendyol seller data every 5 minutes via cron endpoint
+- Store historical snapshots in Prisma/PostgreSQL (SQLite fallback for local dev)
+- Detect alerts (BuyBox loss, undercut, competitor drops, price-war risk)
+- Send in-app alerts + optional SMTP/Telegram notifications
+- Compute safe suggested prices with break-even protection
+- One-click suggested apply and custom updates with loss confirmation guard
+- Currency locked to **SAR (Saudi Riyal)**
 
-- Full integration guide: `docs/TRENDYOL_API_INTEGRATION_GUIDE.md`
+## Stack
+- Next.js 14 (App Router) + TypeScript
+- Tailwind + shadcn-style UI components
+- Prisma ORM + migrations
+- PostgreSQL (production on cranl internal DB) or SQLite (local fallback)
 
-## Quick start
+## Requirements
+- Node.js 20 LTS (`.nvmrc` provided)
+- npm
 
+## Setup
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+cp .env.example .env
+npm install
 ```
 
-## Environment variables
+## Database mode and fallback
+DB is resolved automatically:
+- If `DATABASE_URL` starts with `postgres`, Prisma uses PostgreSQL
+- If `DATABASE_URL` is missing, app/CLI fallback to SQLite: `file:./prisma/dev.db`
 
-Copy `.env.example` to `.env` and set values:
+Commands:
+```bash
+npm run db:generate
+npm run db:migrate
+npm run db:seed
+```
 
-- `TRENDYOL_SELLER_ID`
+Production migration:
+```bash
+npm run db:deploy
+```
+
+## Run locally
+```bash
+npm run dev
+```
+
+Open: `http://localhost:3000`
+
+## Security model
+- App assumes your domain/edge already enforces access control
+- App still protects cron endpoint with `CRON_SECRET`
+- App creates/upserts an audit user from upstream identity headers when available
+
+## Production deployment on cranl (internal Postgres)
+1. Set `DATABASE_URL` to cranl internal PostgreSQL connection string
+2. Set Trendyol credentials:
+- `TRENDYOL_SUPPLIER_ID` (or `TRENDYOL_SELLER_ID`)
 - `TRENDYOL_API_KEY`
 - `TRENDYOL_API_SECRET`
-- `TRENDYOL_API_TOKEN` (optional, auto-derived from key/secret)
-- `TRENDYOL_BASE_URL` (default: `https://apigw.trendyol.com`)
-- `TRENDYOL_USER_AGENT` (required by Trendyol, e.g. `1111632 - SelfIntegration`)
-- `DATABASE_URL`
+- Optional `TRENDYOL_USER_AGENT`
+3. Set `CRON_SECRET`
+4. Run migration deploy and start app
 
-## Sync scripts
+## Cron trigger (every 5 minutes)
+Endpoint:
+- `POST /api/cron/poll`
 
-Products sync:
+Required header:
+- `x-cron-secret: <CRON_SECRET>`
 
+Example:
 ```bash
-python sync_trendyol_products.py --max-pages 1
+curl -X POST "https://your-app.example.com/api/cron/poll" \
+  -H "x-cron-secret: $CRON_SECRET"
 ```
 
-Shipment packages sync:
+## Trendyol API notes
+Configured in `/Users/saud/xcodeproject/trendyolxsync/lib/trendyol/client.ts` with:
+- HTTP Basic auth
+- Required `User-Agent`
+- Exponential backoff retry on `429` and `5xx`
+- Product sync endpoint:
+  - `GET /integration/product/sellers/{sellerId}/products`
 
+Reference guide:
+- `/Users/saud/xcodeproject/trendyolxsync/docs/TRENDYOL_API_INTEGRATION_GUIDE.md`
+
+## Main routes
+- `/dashboard`
+- `/products/[id]`
+- `/alerts`
+- `/settings`
+
+## API routes
+- `POST /api/cron/poll`
+- `GET /api/dashboard`
+- `POST /api/products/sync`
+- `POST /api/products/update-price`
+- `GET /api/alerts`
+- `POST /api/alerts/mark-read`
+- `GET/POST /api/settings`
+- `POST /api/settings/test-notification`
+- `GET/PATCH /api/products/[id]/settings`
+- `GET /api/products/[id]/details`
+
+## Testing
+Unit tests cover:
+- Pricing and break-even calculation
+- Suggested price floor/cooldown logic
+- Alert detector rules
+
+Run:
 ```bash
-python sync_shipment_packages.py --max-pages 1
-```
-
-Dry-run shipment packages:
-
-```bash
-python sync_shipment_packages.py --dry-run --lookback-hours 24 --max-pages 2
+npm test
 ```

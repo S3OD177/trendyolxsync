@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { requireUserFromServerHeaders } from "@/lib/auth/cloudflare";
 
@@ -7,11 +8,7 @@ const navItems = [
   { href: "/settings", label: "Settings" }
 ];
 
-export default async function ProtectedLayout({
-  children
-}: {
-  children: React.ReactNode;
-}) {
+export default async function ProtectedLayout({ children }: { children: ReactNode }) {
   const user = await requireUserFromServerHeaders();
 
   return (
@@ -24,7 +21,7 @@ export default async function ProtectedLayout({
           </div>
           <div className="text-right text-sm text-muted-foreground">
             <div>{user.email}</div>
-            <div>Cloudflare Access</div>
+            <div>Upstream Domain Security</div>
           </div>
         </div>
       </header>

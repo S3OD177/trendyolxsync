@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import "@/styles/globals.css";
 import { ToasterProvider } from "@/components/ui/toaster";
 
@@ -7,11 +8,7 @@ export const metadata: Metadata = {
   description: "Monitor BuyBox status, receive alerts, and apply safe manual price updates."
 };
 
-export default function RootLayout({
-  children
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body className="min-h-screen bg-background text-foreground antialiased">

@@ -46,6 +46,7 @@ export interface SuggestedPriceResult {
   target: number | null;
   reason:
     | "NO_COMPETITOR_DATA"
+    | "FLOOR_INVALID"
     | "COOLDOWN_ACTIVE"
     | "ABOVE_FLOOR"
     | "FLOOR_PROTECTED"

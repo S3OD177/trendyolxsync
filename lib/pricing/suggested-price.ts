@@ -6,6 +6,15 @@ export function suggestedPrice(args: SuggestedPriceArgs): SuggestedPriceResult {
   const { competitorMin, settings, lastDownwardChangeAt, now = new Date(), bypassCooldown } = args;
   const floor = breakEvenPrice(settings);
 
+  if (!Number.isFinite(floor)) {
+    return {
+      suggested: null,
+      floor,
+      target: competitorMin === null || competitorMin === undefined ? null : competitorMin,
+      reason: "FLOOR_INVALID"
+    };
+  }
+
   if (competitorMin === null || competitorMin === undefined) {
     return {
       suggested: null,

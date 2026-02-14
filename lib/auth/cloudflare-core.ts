@@ -1,58 +1,30 @@
-import { createRemoteJWKSet, jwtVerify } from "jose";
-import type { JwtPayload } from "jose";
-import { env } from "@/lib/config/env";
-
 export interface CloudflareIdentity {
   email: string;
   subject: string;
-  payload: JwtPayload;
+  payload: Record<string, string>;
 }
 
-const localBypass = env.AUTH_BYPASS_LOCAL === "1" && env.NODE_ENV !== "production";
+function normalizeEmail(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
 
-const jwks = env.CLOUDFLARE_ACCESS_TEAM_DOMAIN
-  ? createRemoteJWKSet(
-      new URL(`https://${env.CLOUDFLARE_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`)
-    )
-  : null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
 
-function parseIdentityFromPayload(payload: JwtPayload): CloudflareIdentity {
-  const email =
-    typeof payload.email === "string"
-      ? payload.email
-      : typeof payload["sub"] === "string"
-        ? payload.sub
-        : "unknown@example.com";
+export function extractIdentityFromHeaders(getHeader: (name: string) => string | null): CloudflareIdentity {
+  const upstreamEmail =
+    normalizeEmail(getHeader("cf-access-authenticated-user-email")) ||
+    normalizeEmail(getHeader("x-user-email")) ||
+    "edge-admin@local";
 
   return {
-    email,
-    subject: typeof payload.sub === "string" ? payload.sub : email,
-    payload
+    email: upstreamEmail,
+    subject: upstreamEmail,
+    payload: {
+      email: upstreamEmail,
+      sub: upstreamEmail
+    }
   };
 }
-
-export async function verifyCloudflareToken(token: string): Promise<CloudflareIdentity | null> {
-  if (localBypass) {
-    return {
-      email: "local-admin@example.com",
-      subject: "local-admin",
-      payload: { email: "local-admin@example.com", sub: "local-admin" }
-    };
-  }
-
-  if (!jwks || !env.CLOUDFLARE_ACCESS_AUDIENCE) {
-    return null;
-  }
-
-  try {
-    const { payload } = await jwtVerify(token, jwks, {
-      audience: env.CLOUDFLARE_ACCESS_AUDIENCE
-    });
-
-    return parseIdentityFromPayload(payload);
-  } catch {
-    return null;
-  }
-}
-
-export const isLocalBypassEnabled = localBypass;

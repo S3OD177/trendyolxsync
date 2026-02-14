@@ -58,66 +58,66 @@ model User {
 }
 
 model Product {
-  id               String           @id @default(cuid())
-  sku              String           @unique
-  barcode          String?          @db.VarChar(64)
-  title            String
-  trendyolProductId String?         @db.VarChar(128)
-  category         String?
-  active           Boolean          @default(true)
-  currency         String           @default("SAR")
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  id                String           @id @default(cuid())
+  sku               String           @unique
+  barcode           String?
+  title             String
+  trendyolProductId String?
+  category          String?
+  active            Boolean          @default(true)
+  currency          String           @default("SAR")
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
-  settings         ProductSettings?
-  snapshots        PriceSnapshot[]
-  alerts           Alert[]
-  priceChanges     PriceChangeLog[]
+  settings     ProductSettings?
+  snapshots    PriceSnapshot[]
+  alerts       Alert[]
+  priceChanges PriceChangeLog[]
 
   @@index([barcode])
 }
 
 model GlobalSettings {
-  id                     String         @id @default(cuid())
-  currency               String         @default("SAR")
-  commissionRate         Decimal        @default(0.15) @db.Decimal(10, 4)
-  serviceFeeType         ServiceFeeType @default(PERCENT)
-  serviceFeeValue        Decimal        @default(0) @db.Decimal(10, 4)
-  shippingCost           Decimal        @default(0) @db.Decimal(10, 2)
-  handlingCost           Decimal        @default(0) @db.Decimal(10, 2)
-  vatRate                Decimal        @default(15) @db.Decimal(5, 2)
-  vatMode                VatMode        @default(INCLUSIVE)
-  minProfitType          MinProfitType  @default(SAR)
-  minProfitValue         Decimal        @default(0) @db.Decimal(10, 2)
-  undercutStep           Decimal        @default(0.5) @db.Decimal(10, 2)
-  alertThresholdSar      Decimal        @default(2) @db.Decimal(10, 2)
-  alertThresholdPct      Decimal        @default(1) @db.Decimal(10, 2)
-  cooldownMinutes        Int            @default(15)
-  competitorDropPct      Decimal        @default(3) @db.Decimal(10, 2)
-  createdAt              DateTime       @default(now())
-  updatedAt              DateTime       @updatedAt
+  id                String         @id @default(cuid())
+  currency          String         @default("SAR")
+  commissionRate    Decimal        @default(0.15)
+  serviceFeeType    ServiceFeeType @default(PERCENT)
+  serviceFeeValue   Decimal        @default(0)
+  shippingCost      Decimal        @default(0)
+  handlingCost      Decimal        @default(0)
+  vatRate           Decimal        @default(15)
+  vatMode           VatMode        @default(INCLUSIVE)
+  minProfitType     MinProfitType  @default(SAR)
+  minProfitValue    Decimal        @default(0)
+  undercutStep      Decimal        @default(0.5)
+  alertThresholdSar Decimal        @default(2)
+  alertThresholdPct Decimal        @default(1)
+  cooldownMinutes   Int            @default(15)
+  competitorDropPct Decimal        @default(3)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 }
 
 model ProductSettings {
-  id                   String         @id @default(cuid())
-  productId            String         @unique
-  costPrice            Decimal        @db.Decimal(10, 2)
-  commissionRate       Decimal?       @db.Decimal(10, 4)
-  serviceFeeType       ServiceFeeType?
-  serviceFeeValue      Decimal?       @db.Decimal(10, 4)
-  shippingCost         Decimal?       @db.Decimal(10, 2)
-  handlingCost         Decimal?       @db.Decimal(10, 2)
-  vatRate              Decimal?       @db.Decimal(5, 2)
-  vatMode              VatMode?
-  minProfitType        MinProfitType?
-  minProfitValue       Decimal?       @db.Decimal(10, 2)
-  undercutStep         Decimal?       @db.Decimal(10, 2)
-  alertThresholdSar    Decimal?       @db.Decimal(10, 2)
-  alertThresholdPct    Decimal?       @db.Decimal(10, 2)
-  cooldownMinutes      Int?
-  competitorDropPct    Decimal?       @db.Decimal(10, 2)
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
+  id                String         @id @default(cuid())
+  productId         String         @unique
+  costPrice         Decimal
+  commissionRate    Decimal?
+  serviceFeeType    ServiceFeeType?
+  serviceFeeValue   Decimal?
+  shippingCost      Decimal?
+  handlingCost      Decimal?
+  vatRate           Decimal?
+  vatMode           VatMode?
+  minProfitType     MinProfitType?
+  minProfitValue    Decimal?
+  undercutStep      Decimal?
+  alertThresholdSar Decimal?
+  alertThresholdPct Decimal?
+  cooldownMinutes   Int?
+  competitorDropPct Decimal?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
@@ -126,8 +126,8 @@ model PriceSnapshot {
   id                 String       @id @default(cuid())
   productId          String
   checkedAt          DateTime     @default(now())
-  ourPrice           Decimal?     @db.Decimal(10, 2)
-  competitorMinPrice Decimal?     @db.Decimal(10, 2)
+  ourPrice           Decimal?
+  competitorMinPrice Decimal?
   competitorCount    Int?
   buyboxStatus       BuyBoxStatus @default(UNKNOWN)
   buyboxSellerId     String?
@@ -135,7 +135,7 @@ model PriceSnapshot {
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@index([productId, checkedAt(sort: Desc)])
+  @@index([productId, checkedAt])
 }
 
 model Alert {
@@ -150,23 +150,23 @@ model Alert {
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@index([isRead, createdAt(sort: Desc)])
+  @@index([isRead, createdAt])
 }
 
 model PriceChangeLog {
   id                  String            @id @default(cuid())
   productId           String
   createdAt           DateTime          @default(now())
-  oldPrice            Decimal?          @db.Decimal(10, 2)
-  newPrice            Decimal           @db.Decimal(10, 2)
+  oldPrice            Decimal?
+  newPrice            Decimal
   method              PriceChangeMethod
   requestedByUserId   String?
   trendyolResponseJson Json?
 
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  requestedByUser User? @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  product         Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  requestedByUser User?   @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
-  @@index([productId, createdAt(sort: Desc)])
+  @@index([productId, createdAt])
 }
 
 model JobLock {
