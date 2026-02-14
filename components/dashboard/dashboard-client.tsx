@@ -335,12 +335,12 @@ export function DashboardClient() {
     },
     {
       key: "competitorMin",
-      header: "Competitor Min",
+      header: "BuyBox Price",
       cell: (row) => <span className="font-medium">{formatSar(row.competitorMinPrice)}</span>
     },
     {
       key: "delta",
-      header: "Delta",
+      header: "Difference",
       className: "hidden xl:table-cell",
       cell: (row) => {
         if (row.deltaSar === null) {
@@ -367,7 +367,7 @@ export function DashboardClient() {
     },
     {
       key: "margin",
-      header: "Margin",
+      header: "Profit",
       className: "hidden lg:table-cell",
       cell: (row) => {
         if (row.marginSar === null) {
