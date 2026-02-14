@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
             title: item.title,
             trendyolProductId: item.productId,
             category: item.category,
-            active: item.active,
+            active: true,
             currency: "SAR"
           },
           create: {
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
             title: item.title,
             trendyolProductId: item.productId,
             category: item.category,
-            active: item.active,
+            active: true,
             currency: "SAR",
             settings: {
               create: {
