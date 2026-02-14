@@ -4,14 +4,16 @@ import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
-import { Bell, LayoutDashboard, Settings } from "lucide-react";
+import { Bell, LayoutDashboard, Settings, Truck } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
+// Cast generic routes to satisfy Next.js typed routes until regeneration
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/alerts", label: "Alerts", icon: Bell },
-  { href: "/settings", label: "Settings", icon: Settings }
+  { href: "/dashboard" as Route, label: "Dashboard", icon: LayoutDashboard },
+  { href: "/shipments" as Route, label: "Shipments", icon: Truck },
+  { href: "/alerts" as Route, label: "Alerts", icon: Bell },
+  { href: "/settings" as Route, label: "Settings", icon: Settings }
 ] satisfies ReadonlyArray<{ href: Route; label: string; icon: ComponentType<{ className?: string }> }>;
 
 export function ProtectedNav({ mobile = false }: { mobile?: boolean }) {

@@ -293,9 +293,10 @@ export function DashboardClient() {
       </Button>
       <Button
         size="sm"
+        variant="secondary"
         onClick={() => openCustomUpdate(row)}
         disabled={updatingId === row.productId}
-        className={compact ? "w-full" : undefined}
+        className={compact ? "w-full" : "hover:bg-primary/20 hover:text-primary"}
       >
         Custom
       </Button>
@@ -467,7 +468,7 @@ export function DashboardClient() {
                 placeholder="Filter by SKU or title..."
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                className="max-w-sm bg-background/50"
+                className="max-w-sm bg-muted/20 border-white/10 text-foreground placeholder:text-muted-foreground/70 focus-visible:ring-primary/20"
               />
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -493,7 +494,7 @@ export function DashboardClient() {
             </div>
           </div>
 
-          <div className="rounded-md border bg-background/50 backdrop-blur-sm">
+          <div className="rounded-xl border border-white/5 bg-white/5 backdrop-blur-md dark:bg-zinc-900/30">
             {apiWarning ? (
               <div className="border-b bg-amber-500/10 px-4 py-2 text-sm text-amber-500">
                 <Activity className="mr-2 inline-block h-3 w-3" />

@@ -354,12 +354,12 @@ export class TrendyolClient {
   private mapProductItem(item: any): TrendyolProductItem | null {
     const sku = String(
       item?.productCode ??
-        item?.stockCode ??
-        item?.merchantSku ??
-        item?.productMainId ??
-        item?.barcode ??
-        item?.id ??
-        ""
+      item?.stockCode ??
+      item?.merchantSku ??
+      item?.productMainId ??
+      item?.barcode ??
+      item?.id ??
+      ""
     ).trim();
 
     if (!sku) {
@@ -374,11 +374,11 @@ export class TrendyolClient {
         ? String(item.productMainId)
         : item?.contentId
           ? String(item.contentId)
-        : item?.productCode
-          ? String(item.productCode)
-          : item?.id
-            ? String(item.id)
-            : null,
+          : item?.productCode
+            ? String(item.productCode)
+            : item?.id
+              ? String(item.id)
+              : null,
       category: item?.categoryName
         ? String(item.categoryName)
         : item?.category?.name
@@ -435,7 +435,7 @@ export class TrendyolClient {
             ? raw.total
             : typeof raw?.data?.totalElements === "number"
               ? raw.data.totalElements
-            : undefined,
+              : undefined,
       totalPages:
         typeof raw?.totalPages === "number"
           ? raw.totalPages
@@ -443,7 +443,7 @@ export class TrendyolClient {
             ? raw.pageCount
             : typeof raw?.data?.totalPages === "number"
               ? raw.data.totalPages
-            : undefined
+              : undefined
     };
   }
 
@@ -600,6 +600,30 @@ export class TrendyolClient {
     return {
       accepted: true,
       raw
+    };
+  }
+
+  async fetchShipmentPackages(
+    options: import("@/lib/trendyol/shipments/types").FetchShipmentsOptions
+  ): Promise<{ content: import("@/lib/trendyol/shipments/types").TrendyolShipmentPackage[]; totalPages: number }> {
+    const params = new URLSearchParams();
+    params.set("page", String(options.page ?? 0));
+    params.set("size", String(options.size ?? 50));
+
+    if (options.startDate) params.set("startDate", String(options.startDate));
+    if (options.endDate) params.set("endDate", String(options.endDate));
+    if (options.status) params.set("shipmentPackageStatus", options.status);
+    if (options.orderByField) params.set("orderByField", options.orderByField);
+    if (options.orderByDirection) params.set("orderByDirection", options.orderByDirection);
+
+    const qs = params.toString();
+    const url = `/integration/order/sellers/${this.sellerId}/shipment-packages?${qs}`;
+
+    const response = await this.request<any>(url);
+
+    return {
+      content: Array.isArray(response.content) ? response.content : [],
+      totalPages: typeof response.totalPages === "number" ? response.totalPages : 0
     };
   }
 }
