@@ -11,6 +11,12 @@ if (!process.env.DB_PROVIDER) {
   process.env.DB_PROVIDER = resolvedDbProvider;
 }
 
+const booleanLike = z
+  .union([z.boolean(), z.string()])
+  .transform((value) =>
+    typeof value === "boolean" ? value : ["1", "true", "yes", "on"].includes(value.toLowerCase())
+  );
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   DATABASE_URL: z.string().min(1),
@@ -36,7 +42,10 @@ const envSchema = z.object({
   DEFAULT_COOLDOWN_MINUTES: z
     .string()
     .optional()
-    .transform((value) => (value ? Number(value) : 15))
+    .transform((value) => (value ? Number(value) : 15)),
+  AUTO_SYNC_CATALOG: booleanLike.default(true),
+  AUTO_SYNC_MAX_PAGES: z.coerce.number().int().min(1).max(50).default(5),
+  AUTO_SYNC_PAGE_SIZE: z.coerce.number().int().min(1).max(200).default(50)
 });
 
 export const env = envSchema.parse({

@@ -10,7 +10,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
   return (
     <div className="min-h-screen pb-10">
       <header className="border-b border-slate-200/80 bg-white/75 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
+        <div className="mx-auto flex w-full max-w-[1500px] items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-600 to-sky-700 text-white shadow-md shadow-cyan-700/20">
               <ChartNoAxesCombined className="h-5 w-5" />
@@ -28,7 +28,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 py-6 sm:px-6 md:grid-cols-[250px_1fr]">
+      <div className="mx-auto grid w-full max-w-[1500px] grid-cols-1 gap-6 px-4 py-6 sm:px-6 md:grid-cols-[250px_1fr]">
         <aside className="surface-panel h-fit p-4">
           <ProtectedNav />
         </aside>

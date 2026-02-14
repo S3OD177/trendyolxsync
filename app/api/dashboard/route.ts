@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { env } from "@/lib/config/env";
+import { prisma } from "@/lib/db/prisma";
 import { buildDashboardRows } from "@/lib/dashboard/service";
 import { NO_STORE_HEADERS } from "@/lib/http/no-store";
+import { trendyolClient } from "@/lib/trendyol/client";
+import { syncCatalogFromTrendyol } from "@/lib/trendyol/sync-catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +33,23 @@ export async function GET(request: NextRequest) {
 
   try {
     const query = parsed.data;
+
+    if (env.AUTO_SYNC_CATALOG && trendyolClient.isConfigured()) {
+      const productCount = await prisma.product.count();
+      if (productCount === 0) {
+        try {
+          await syncCatalogFromTrendyol({
+            maxPages: env.AUTO_SYNC_MAX_PAGES,
+            pageSize: env.AUTO_SYNC_PAGE_SIZE,
+            hydratePrices: true,
+            hydrateLimit: 100,
+            createInitialSnapshots: true
+          });
+        } catch {
+          // Best-effort bootstrap; dashboard should still render.
+        }
+      }
+    }
 
     let rows = await buildDashboardRows();
 

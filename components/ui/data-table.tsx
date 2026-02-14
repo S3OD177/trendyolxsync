@@ -17,7 +17,7 @@ interface DataTableProps<T> {
 
 export function DataTable<T>({ columns, data, getRowId, emptyText = "No records." }: DataTableProps<T>) {
   return (
-    <Table className="min-w-[1100px]">
+    <Table className="w-full">
       <TableHeader>
         <TableRow>
           {columns.map((column) => (

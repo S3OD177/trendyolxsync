@@ -1,10 +1,12 @@
 import type { Prisma, PriceChangeMethod, Product } from "@prisma/client";
 import { detectAlerts } from "@/lib/alerts/detector";
+import { env } from "@/lib/config/env";
 import { prisma } from "@/lib/db/prisma";
 import { breakEvenPrice } from "@/lib/pricing/calculator";
 import { getEffectiveSettingsForProduct, getOrCreateGlobalSettings } from "@/lib/pricing/effective-settings";
 import { suggestedPrice } from "@/lib/pricing/suggested-price";
 import { trendyolClient } from "@/lib/trendyol/client";
+import { syncCatalogFromTrendyol } from "@/lib/trendyol/sync-catalog";
 
 export interface PollRunSummary {
   ok: boolean;
@@ -12,6 +14,9 @@ export interface PollRunSummary {
   alertsCreated: number;
   durationMs: number;
   skipped: number;
+  catalogSynced: number;
+  catalogPagesFetched: number;
+  catalogSyncError?: string;
   message?: string;
 }
 
@@ -113,6 +118,8 @@ export async function runPoll(): Promise<PollRunSummary> {
       processed: 0,
       alertsCreated: 0,
       skipped: 0,
+      catalogSynced: 0,
+      catalogPagesFetched: 0,
       durationMs: Date.now() - start,
       message: "Trendyol credentials are not configured"
     };
@@ -120,7 +127,44 @@ export async function runPoll(): Promise<PollRunSummary> {
 
   await getOrCreateGlobalSettings();
 
+  let catalogSynced = 0;
+  let catalogPagesFetched = 0;
+  let catalogSyncError: string | undefined;
+
+  if (env.AUTO_SYNC_CATALOG) {
+    try {
+      const syncSummary = await syncCatalogFromTrendyol({
+        maxPages: env.AUTO_SYNC_MAX_PAGES,
+        pageSize: env.AUTO_SYNC_PAGE_SIZE,
+        hydratePrices: false,
+        hydrateLimit: 0,
+        createInitialSnapshots: false
+      });
+      catalogSynced = syncSummary.totalSynced;
+      catalogPagesFetched = syncSummary.pagesFetched;
+    } catch (error) {
+      catalogSyncError =
+        error instanceof Error ? error.message : "Automatic catalog sync failed";
+    }
+  }
+
   const products = await prisma.product.findMany({ where: { active: true } });
+
+  if (!products.length) {
+    return {
+      ok: true,
+      processed: 0,
+      alertsCreated: 0,
+      skipped: 0,
+      catalogSynced,
+      catalogPagesFetched,
+      catalogSyncError,
+      durationMs: Date.now() - start,
+      message: catalogSyncError
+        ? "No active products and catalog sync failed"
+        : "No active products found after catalog sync"
+    };
+  }
 
   let alertsCreated = 0;
   let skipped = 0;
@@ -193,6 +237,9 @@ export async function runPoll(): Promise<PollRunSummary> {
     processed: products.length - skipped,
     alertsCreated,
     skipped,
+    catalogSynced,
+    catalogPagesFetched,
+    catalogSyncError,
     durationMs: Date.now() - start
   };
 }

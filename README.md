@@ -4,6 +4,7 @@ Production-ready Next.js 14 admin app for monitoring Trendyol BuyBox competitive
 
 Core capabilities:
 - Poll Trendyol seller data every 5 minutes via cron endpoint
+- Auto-sync catalog from Trendyol inside each poll run (no manual sync required)
 - Store historical snapshots in Prisma/PostgreSQL (SQLite fallback for local dev)
 - Detect alerts (BuyBox loss, undercut, competitor drops, price-war risk)
 - Send in-app alerts only
@@ -75,6 +76,8 @@ Endpoint:
 Required header:
 - `x-cron-secret: <CRON_SECRET>`
 
+The poll job first syncs catalog pages (controlled by `AUTO_SYNC_*` env vars), then fetches price snapshots/alerts.
+
 Example:
 ```bash
 curl -X POST "https://your-app.example.com/api/cron/poll" \
@@ -101,7 +104,7 @@ Reference guide:
 ## API routes
 - `POST /api/cron/poll`
 - `GET /api/dashboard`
-- `POST /api/products/sync`
+- `POST /api/products/sync` (optional manual/debug sync)
 - `POST /api/products/update-price`
 - `GET /api/alerts`
 - `POST /api/alerts/mark-read`

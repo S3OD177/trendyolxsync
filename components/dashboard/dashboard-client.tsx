@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Boxes, Loader2, RefreshCw, ShieldAlert, TriangleAlert, Upload } from "lucide-react";
+import { Boxes, Loader2, RefreshCw, ShieldAlert, TriangleAlert } from "lucide-react";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -186,36 +186,6 @@ export function DashboardClient() {
     }
   };
 
-  const syncCatalog = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("/api/products/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ maxPages: 5, pageSize: 50 })
-      });
-      const data = await readJsonResponse(response);
-      if (!response.ok) {
-        throw new Error(data.error || "Sync failed");
-      }
-
-      toast({
-        title: "Catalog synced",
-        description: `${data.totalSynced} products synced`
-      });
-
-      await loadRows();
-    } catch (error) {
-      toast({
-        title: "Sync failed",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const columns: DataTableColumn<DashboardRow>[] = [
     {
       key: "sku",
@@ -225,6 +195,7 @@ export function DashboardClient() {
     {
       key: "barcode",
       header: "Barcode",
+      className: "hidden xl:table-cell",
       cell: (row) => row.barcode || "-"
     },
     {
@@ -239,6 +210,7 @@ export function DashboardClient() {
     {
       key: "listingId",
       header: "Listing ID",
+      className: "hidden 2xl:table-cell",
       cell: (row) => <span className="text-xs text-slate-500">{row.listingId || "-"}</span>
     },
     {
@@ -254,6 +226,7 @@ export function DashboardClient() {
     {
       key: "delta",
       header: "Delta",
+      className: "hidden xl:table-cell",
       cell: (row) => {
         if (row.deltaSar === null) {
           return "-";
@@ -280,6 +253,7 @@ export function DashboardClient() {
     {
       key: "margin",
       header: "Margin",
+      className: "hidden lg:table-cell",
       cell: (row) => {
         if (row.marginSar === null) {
           return "-";
@@ -296,6 +270,7 @@ export function DashboardClient() {
     {
       key: "last",
       header: "Last Check",
+      className: "hidden xl:table-cell",
       cell: (row) => (
         <span className="text-xs text-slate-500">
           {row.lastCheckedAt ? new Date(row.lastCheckedAt).toLocaleString() : "-"}
@@ -305,9 +280,9 @@ export function DashboardClient() {
     {
       key: "actions",
       header: "Actions",
-      className: "text-right",
+      className: "min-w-[230px] text-right",
       cell: (row) => (
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <Link href={`/products/${row.productId}`}>
             <Button size="sm" variant="outline">
               View
@@ -382,15 +357,14 @@ export function DashboardClient() {
               <p className="mt-1 text-sm text-slate-500">
                 Live market visibility, safe suggested pricing, and manual updates.
               </p>
+              <p className="mt-1 text-xs text-slate-400">
+                Catalog sync runs automatically in every 5-minute cron poll.
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" onClick={loadRows} className="border-slate-300 bg-white">
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Refresh
-              </Button>
-              <Button onClick={syncCatalog} className="bg-cyan-700 text-white hover:bg-cyan-800">
-                <Upload className="mr-2 h-4 w-4" />
-                Sync from Trendyol
               </Button>
             </div>
           </div>
