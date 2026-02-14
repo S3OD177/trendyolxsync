@@ -1,0 +1,22 @@
+import type { Metadata } from "next";
+import "@/styles/globals.css";
+import { ToasterProvider } from "@/components/ui/toaster";
+
+export const metadata: Metadata = {
+  title: "Trendyol BuyBox Guard",
+  description: "Monitor BuyBox status, receive alerts, and apply safe manual price updates."
+};
+
+export default function RootLayout({
+  children
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en">
+      <body className="min-h-screen bg-background text-foreground antialiased">
+        <ToasterProvider>{children}</ToasterProvider>
+      </body>
+    </html>
+  );
+}
