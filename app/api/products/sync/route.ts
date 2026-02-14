@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
+import { NO_STORE_HEADERS } from "@/lib/http/no-store";
 import { trendyolClient } from "@/lib/trendyol/client";
 
 export const dynamic = "force-dynamic";
@@ -13,14 +14,20 @@ const bodySchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     if (!trendyolClient.isConfigured()) {
-      return NextResponse.json({ error: "Trendyol credentials are not configured" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Trendyol credentials are not configured" },
+        { status: 400, headers: NO_STORE_HEADERS }
+      );
     }
 
     const payload = await request.json().catch(() => ({}));
     const parsed = bodySchema.safeParse(payload);
 
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+      return NextResponse.json(
+        { error: parsed.error.flatten() },
+        { status: 400, headers: NO_STORE_HEADERS }
+      );
     }
 
     const { maxPages, pageSize } = parsed.data;
@@ -73,13 +80,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
-      ok: true,
-      totalSynced,
-      pagesFetched,
-      sellerId: trendyolClient.getSellerId(),
-      storeFrontCode: trendyolClient.getStoreFrontCode()
-    });
+    return NextResponse.json(
+      {
+        ok: true,
+        totalSynced,
+        pagesFetched,
+        sellerId: trendyolClient.getSellerId(),
+        storeFrontCode: trendyolClient.getStoreFrontCode()
+      },
+      { headers: NO_STORE_HEADERS }
+    );
   } catch (error) {
     return NextResponse.json(
       {
@@ -88,7 +98,7 @@ export async function POST(request: NextRequest) {
         sellerId: trendyolClient.getSellerId(),
         storeFrontCode: trendyolClient.getStoreFrontCode()
       },
-      { status: 502 }
+      { status: 502, headers: NO_STORE_HEADERS }
     );
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { env } from "@/lib/config/env";
 import { prisma } from "@/lib/db/prisma";
+import { NO_STORE_HEADERS } from "@/lib/http/no-store";
 import { getOrCreateGlobalSettings } from "@/lib/pricing/effective-settings";
 
 export const dynamic = "force-dynamic";
@@ -47,9 +48,9 @@ function toErrorMessage(error: unknown) {
 export async function GET(request: NextRequest) {
   try {
     const settings = await getOrCreateGlobalSettings();
-    return NextResponse.json({ settings, integrations: integrationStatus() });
+    return NextResponse.json({ settings, integrations: integrationStatus() }, { headers: NO_STORE_HEADERS });
   } catch (error) {
-    return NextResponse.json({ error: toErrorMessage(error) }, { status: 500 });
+    return NextResponse.json({ error: toErrorMessage(error) }, { status: 500, headers: NO_STORE_HEADERS });
   }
 }
 
@@ -59,7 +60,10 @@ export async function POST(request: NextRequest) {
     const parsed = updateSchema.safeParse(payload);
 
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+      return NextResponse.json(
+        { error: parsed.error.flatten() },
+        { status: 400, headers: NO_STORE_HEADERS }
+      );
     }
 
     const current = await getOrCreateGlobalSettings();
@@ -69,8 +73,11 @@ export async function POST(request: NextRequest) {
       data: parsed.data
     });
 
-    return NextResponse.json({ ok: true, settings, integrations: integrationStatus() });
+    return NextResponse.json(
+      { ok: true, settings, integrations: integrationStatus() },
+      { headers: NO_STORE_HEADERS }
+    );
   } catch (error) {
-    return NextResponse.json({ error: toErrorMessage(error) }, { status: 500 });
+    return NextResponse.json({ error: toErrorMessage(error) }, { status: 500, headers: NO_STORE_HEADERS });
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { NO_STORE_HEADERS } from "@/lib/http/no-store";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
       take: 200
     });
 
-    return NextResponse.json({ alerts });
+    return NextResponse.json({ alerts }, { headers: NO_STORE_HEADERS });
   } catch (error) {
     return NextResponse.json(
       {
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
             ? `${error.message}. Run Prisma migrations on production database.`
             : "Failed to fetch alerts"
       },
-      { status: 500 }
+      { status: 500, headers: NO_STORE_HEADERS }
     );
   }
 }

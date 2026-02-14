@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { buildDashboardRows } from "@/lib/dashboard/service";
+import { NO_STORE_HEADERS } from "@/lib/http/no-store";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,10 @@ export async function GET(request: NextRequest) {
   const parsed = querySchema.safeParse(Object.fromEntries(request.nextUrl.searchParams.entries()));
 
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    return NextResponse.json(
+      { error: parsed.error.flatten() },
+      { status: 400, headers: NO_STORE_HEADERS }
+    );
   }
 
   try {
@@ -50,7 +54,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ rows });
+    return NextResponse.json({ rows }, { headers: NO_STORE_HEADERS });
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Failed to build dashboard data";
@@ -61,7 +65,7 @@ export async function GET(request: NextRequest) {
           ? `${errorMessage}. Run Prisma migrations on production database.`
           : errorMessage
       },
-      { status: 500 }
+      { status: 500, headers: NO_STORE_HEADERS }
     );
   }
 }
