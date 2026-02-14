@@ -9,7 +9,9 @@ export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
   maxPages: z.number().int().min(1).max(50).default(5),
-  pageSize: z.number().int().min(1).max(200).default(50)
+  pageSize: z.number().int().min(1).max(200).default(50),
+  hydratePrices: z.boolean().default(true),
+  hydrateLimit: z.number().int().min(0).max(500).default(150)
 });
 
 export async function POST(request: NextRequest) {
@@ -31,11 +33,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { maxPages, pageSize } = parsed.data;
+    const { maxPages, pageSize, hydratePrices, hydrateLimit } = parsed.data;
 
     let page = 0;
     let totalSynced = 0;
     let pagesFetched = 0;
+    let hydrationAttempts = 0;
+    let hydratedSnapshots = 0;
+    let hydrationErrors = 0;
 
     while (page < maxPages) {
       const result = await trendyolClient.fetchProducts(page, pageSize);
@@ -72,18 +77,47 @@ export async function POST(request: NextRequest) {
           }
         });
 
-        if (item.ourPrice !== null && item.ourPrice !== undefined) {
+        let snapshotPrice = item.ourPrice ?? null;
+        let snapshotRaw: unknown = {
+          source: "catalog_sync",
+          item: item.raw ?? item
+        };
+
+        const needsHydration = snapshotPrice === null && hydratePrices && hydrationAttempts < hydrateLimit;
+
+        if (needsHydration) {
+          hydrationAttempts += 1;
+          try {
+            const live = await trendyolClient.fetchPriceAndStock({
+              sku: savedProduct.sku,
+              barcode: savedProduct.barcode ?? undefined,
+              productId: savedProduct.trendyolProductId ?? undefined
+            });
+
+            snapshotPrice = live.ourPrice ?? snapshotPrice;
+            snapshotRaw = {
+              source: "catalog_sync_with_live_lookup",
+              catalog: item.raw ?? item,
+              live: live.raw
+            };
+
+            if (snapshotPrice !== null) {
+              hydratedSnapshots += 1;
+            }
+          } catch {
+            hydrationErrors += 1;
+          }
+        }
+
+        if (snapshotPrice !== null) {
           await prisma.priceSnapshot.create({
             data: {
               productId: savedProduct.id,
-              ourPrice: item.ourPrice,
+              ourPrice: snapshotPrice,
               competitorMinPrice: null,
               competitorCount: null,
               buyboxStatus: "UNKNOWN",
-              rawPayloadJson: {
-                source: "catalog_sync",
-                item: item.raw ?? item
-              } as Prisma.InputJsonValue
+              rawPayloadJson: snapshotRaw as Prisma.InputJsonValue
             }
           });
         }
@@ -107,6 +141,9 @@ export async function POST(request: NextRequest) {
         ok: true,
         totalSynced,
         pagesFetched,
+        hydrationAttempts,
+        hydratedSnapshots,
+        hydrationErrors,
         dbTotalProducts,
         dbActiveProducts,
         sellerId: trendyolClient.getSellerId(),
