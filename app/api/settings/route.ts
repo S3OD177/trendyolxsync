@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { env } from "@/lib/config/env";
 import { prisma } from "@/lib/db/prisma";
+import { formatApiError, isDatabaseUnavailableError } from "@/lib/db/errors";
 import { NO_STORE_HEADERS } from "@/lib/http/no-store";
 import { getOrCreateGlobalSettings } from "@/lib/pricing/effective-settings";
 
@@ -35,21 +36,46 @@ function integrationStatus() {
 }
 
 function toErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    const message = error.message.includes("does not exist")
-      ? `${error.message}. Run Prisma migrations on production database.`
-      : error.message;
-    return message;
-  }
-
-  return "Failed to load settings";
+  return formatApiError(error, "Failed to load settings");
 }
 
-export async function GET(request: NextRequest) {
+function fallbackSettings() {
+  return {
+    currency: "SAR",
+    commissionRate: 0.15,
+    serviceFeeType: "PERCENT",
+    serviceFeeValue: 0,
+    shippingCost: 0,
+    handlingCost: 0,
+    vatRate: 15,
+    vatMode: "INCLUSIVE",
+    minProfitType: "SAR",
+    minProfitValue: 0,
+    undercutStep: 0.5,
+    alertThresholdSar: 2,
+    alertThresholdPct: 1,
+    cooldownMinutes: 15,
+    competitorDropPct: 3
+  };
+}
+
+export async function GET() {
   try {
     const settings = await getOrCreateGlobalSettings();
     return NextResponse.json({ settings, integrations: integrationStatus() }, { headers: NO_STORE_HEADERS });
   } catch (error) {
+    if (isDatabaseUnavailableError(error)) {
+      return NextResponse.json(
+        {
+          settings: fallbackSettings(),
+          integrations: integrationStatus(),
+          warning:
+            "Database is unreachable. Showing fallback defaults until DATABASE_URL networking is fixed."
+        },
+        { headers: NO_STORE_HEADERS }
+      );
+    }
+
     return NextResponse.json({ error: toErrorMessage(error) }, { status: 500, headers: NO_STORE_HEADERS });
   }
 }
@@ -78,6 +104,13 @@ export async function POST(request: NextRequest) {
       { headers: NO_STORE_HEADERS }
     );
   } catch (error) {
+    if (isDatabaseUnavailableError(error)) {
+      return NextResponse.json(
+        { error: "Database is unreachable. Save is unavailable until connectivity is restored." },
+        { status: 503, headers: NO_STORE_HEADERS }
+      );
+    }
+
     return NextResponse.json({ error: toErrorMessage(error) }, { status: 500, headers: NO_STORE_HEADERS });
   }
 }

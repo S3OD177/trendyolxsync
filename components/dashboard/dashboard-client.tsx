@@ -1,7 +1,8 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Boxes, Loader2, RefreshCw, ShieldAlert, TriangleAlert } from "lucide-react";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,12 @@ interface LossGuardInfo {
   projectedProfit: number;
 }
 
+interface DashboardResponse {
+  error?: string;
+  warning?: string;
+  rows?: DashboardRow[];
+}
+
 async function readJsonResponse(response: Response): Promise<Record<string, any>> {
   const raw = await response.text();
   if (!raw.trim()) {
@@ -58,6 +65,8 @@ export function DashboardClient() {
   const [rows, setRows] = useState<DashboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [apiWarning, setApiWarning] = useState<string | null>(null);
+  const warningToastRef = useRef<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [lostOnly, setLostOnly] = useState(false);
@@ -82,13 +91,27 @@ export function DashboardClient() {
       });
 
       const response = await fetch(`/api/dashboard?${params.toString()}`, { cache: "no-store" });
-      const data = (await readJsonResponse(response)) as { error?: string; rows?: DashboardRow[] };
+      const data = (await readJsonResponse(response)) as DashboardResponse;
 
       if (!response.ok) {
         throw new Error(data?.error || `Failed to load dashboard (${response.status})`);
       }
 
       setRows(Array.isArray(data.rows) ? data.rows : []);
+
+      const warning = typeof data.warning === "string" ? data.warning : null;
+      setApiWarning(warning);
+      if (warning && warningToastRef.current !== warning) {
+        toast({
+          title: "Dashboard in limited mode",
+          description: warning,
+          variant: "destructive"
+        });
+        warningToastRef.current = warning;
+      }
+      if (!warning) {
+        warningToastRef.current = null;
+      }
     } catch (error) {
       toast({
         title: "Failed to fetch dashboard",
@@ -186,6 +209,33 @@ export function DashboardClient() {
     }
   };
 
+  const renderRowActions = (row: DashboardRow, compact = false) => (
+    <div className={compact ? "grid grid-cols-3 gap-2" : "flex flex-wrap justify-end gap-2"}>
+      <Link href={`/products/${row.productId}` as Route}>
+        <Button size="sm" variant="outline" className={compact ? "w-full" : undefined}>
+          View
+        </Button>
+      </Link>
+      <Button
+        size="sm"
+        onClick={() => submitUpdate(row, "SUGGESTED")}
+        disabled={updatingId === row.productId || row.suggestedPrice === null}
+        className={compact ? "w-full" : undefined}
+      >
+        Apply Suggested
+      </Button>
+      <Button
+        size="sm"
+        variant="secondary"
+        onClick={() => openCustomUpdate(row)}
+        disabled={updatingId === row.productId}
+        className={compact ? "w-full" : undefined}
+      >
+        Custom
+      </Button>
+    </div>
+  );
+
   const columns: DataTableColumn<DashboardRow>[] = [
     {
       key: "sku",
@@ -280,31 +330,8 @@ export function DashboardClient() {
     {
       key: "actions",
       header: "Actions",
-      className: "min-w-[230px] text-right",
-      cell: (row) => (
-        <div className="flex flex-wrap justify-end gap-2">
-          <Link href={`/products/${row.productId}`}>
-            <Button size="sm" variant="outline">
-              View
-            </Button>
-          </Link>
-          <Button
-            size="sm"
-            onClick={() => submitUpdate(row, "SUGGESTED")}
-            disabled={updatingId === row.productId || row.suggestedPrice === null}
-          >
-            Apply Suggested
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => openCustomUpdate(row)}
-            disabled={updatingId === row.productId}
-          >
-            Custom
-          </Button>
-        </div>
-      )
+      className: "min-w-[240px] text-right",
+      cell: (row) => renderRowActions(row)
     }
   ];
 
@@ -398,19 +425,74 @@ export function DashboardClient() {
           </div>
         </CardHeader>
 
-        <CardContent>
+        <CardContent className="space-y-4">
+          {apiWarning ? (
+            <div className="rounded-xl border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {apiWarning}
+            </div>
+          ) : null}
+
           {loading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading dashboard...
             </div>
           ) : (
-            <DataTable
-              columns={columns}
-              data={rows}
-              getRowId={(row) => row.productId}
-              emptyText="No products found."
-            />
+            <>
+              <div className="space-y-3 lg:hidden">
+                {rows.length === 0 ? (
+                  <div className="surface-muted p-6 text-center text-sm text-slate-500">
+                    No products found.
+                  </div>
+                ) : (
+                  rows.map((row) => (
+                    <div key={row.productId} className="surface-muted p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-900">{row.sku}</p>
+                          <p className="line-clamp-2 text-xs text-slate-500">{row.title}</p>
+                        </div>
+                        <StatusBadge status={row.buyboxStatus} />
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs text-slate-600">
+                        <div>
+                          <p className="text-[11px] uppercase tracking-wide text-slate-400">Our Price</p>
+                          <p className="text-sm font-semibold text-slate-900">{formatSar(row.ourPrice)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] uppercase tracking-wide text-slate-400">Competitor</p>
+                          <p className="text-sm font-semibold">{formatSar(row.competitorMinPrice)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] uppercase tracking-wide text-slate-400">Suggested</p>
+                          <p className="text-sm font-semibold">{formatSar(row.suggestedPrice)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] uppercase tracking-wide text-slate-400">Margin</p>
+                          <p className="text-sm font-semibold">
+                            {row.marginSar === null
+                              ? "-"
+                              : `${formatSar(row.marginSar)} (${row.marginPct?.toFixed(2)}%)`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-3">{renderRowActions(row, true)}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="hidden lg:block">
+                <DataTable
+                  columns={columns}
+                  data={rows}
+                  getRowId={(row) => row.productId}
+                  emptyText="No products found."
+                />
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

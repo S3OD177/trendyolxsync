@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { env } from "@/lib/config/env";
 import { prisma } from "@/lib/db/prisma";
+import { formatApiError, isDatabaseUnavailableError } from "@/lib/db/errors";
 import { buildDashboardRows } from "@/lib/dashboard/service";
 import { NO_STORE_HEADERS } from "@/lib/http/no-store";
 import { trendyolClient } from "@/lib/trendyol/client";
@@ -82,14 +83,20 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ rows }, { headers: NO_STORE_HEADERS });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Failed to build dashboard data";
+    if (isDatabaseUnavailableError(error)) {
+      return NextResponse.json(
+        {
+          rows: [],
+          warning:
+            "Database is unreachable. Verify DATABASE_URL networking/access for trendxsync-dz616i:5432."
+        },
+        { headers: NO_STORE_HEADERS }
+      );
+    }
 
     return NextResponse.json(
       {
-        error: errorMessage.includes("does not exist")
-          ? `${errorMessage}. Run Prisma migrations on production database.`
-          : errorMessage
+        error: formatApiError(error, "Failed to build dashboard data")
       },
       { status: 500, headers: NO_STORE_HEADERS }
     );

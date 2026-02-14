@@ -8,7 +8,7 @@ export const revalidate = 0;
 
 export default async function ProtectedLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen pb-10">
+    <div className="min-h-screen overflow-x-hidden pb-10">
       <header className="border-b border-slate-200/80 bg-white/75 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-[1500px] items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
@@ -28,12 +28,12 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
         </div>
       </header>
 
-      <div className="mx-auto grid w-full max-w-[1500px] grid-cols-1 gap-6 px-4 py-6 sm:px-6 md:grid-cols-[250px_1fr]">
-        <aside className="surface-panel h-fit p-4">
+      <div className="mx-auto grid w-full max-w-[1500px] grid-cols-1 gap-6 px-4 py-6 sm:px-6 xl:grid-cols-[220px_minmax(0,1fr)]">
+        <aside className="surface-panel h-fit p-4 xl:sticky xl:top-6">
           <ProtectedNav />
         </aside>
 
-        <main className="space-y-6">{children}</main>
+        <main className="min-w-0 space-y-6">{children}</main>
       </div>
     </div>
   );

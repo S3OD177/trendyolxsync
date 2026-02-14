@@ -48,6 +48,7 @@ export function SettingsClient() {
   const { toast } = useToast();
   const [form, setForm] = useState<GlobalSettingsForm | null>(null);
   const [integrations, setIntegrations] = useState<Record<string, boolean>>({});
+  const [warning, setWarning] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -80,6 +81,7 @@ export function SettingsClient() {
         });
 
         setIntegrations(data.integrations || {});
+        setWarning(typeof data.warning === "string" ? data.warning : null);
       } catch (error) {
         toast({
           title: "Failed to load settings",
@@ -145,6 +147,11 @@ export function SettingsClient() {
           </p>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2">
+          {warning ? (
+            <div className="md:col-span-2 rounded-xl border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {warning}
+            </div>
+          ) : null}
           <div className="surface-muted flex items-center justify-between p-3">
             <span className="font-medium text-slate-700">Trendyol API</span>
             <Badge variant={integrations.trendyolConfigured ? "success" : "destructive"}>

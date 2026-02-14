@@ -45,6 +45,7 @@ export function AlertsCenterClient() {
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [warning, setWarning] = useState<string | null>(null);
 
   const loadAlerts = useCallback(async () => {
     setLoading(true);
@@ -56,6 +57,7 @@ export function AlertsCenterClient() {
       }
 
       setAlerts(data.alerts || []);
+      setWarning(typeof data.warning === "string" ? data.warning : null);
     } catch (error) {
       toast({
         title: "Failed to load alerts",
@@ -118,6 +120,11 @@ export function AlertsCenterClient() {
         </div>
       </CardHeader>
       <CardContent>
+        {warning ? (
+          <div className="mb-3 rounded-xl border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            {warning}
+          </div>
+        ) : null}
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading alerts...</p>
         ) : visibleAlerts.length === 0 ? (
