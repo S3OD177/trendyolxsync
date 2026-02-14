@@ -24,8 +24,9 @@ export async function middleware(request: NextRequest) {
     const secret =
       request.headers.get("x-cron-secret") ||
       request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+    const hasPinSession = request.cookies.get(PIN_COOKIE_NAME)?.value === "1";
 
-    if (!secret || secret !== env.CRON_SECRET) {
+    if ((!secret || secret !== env.CRON_SECRET) && !hasPinSession) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
