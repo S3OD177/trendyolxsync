@@ -69,13 +69,22 @@ export function DashboardClient() {
       });
 
       const response = await fetch(`/api/dashboard?${params.toString()}`, { cache: "no-store" });
-      const data = await response.json();
+      const raw = await response.text();
+      let data: { error?: string; rows?: DashboardRow[] } = {};
 
-      if (!response.ok) {
-        throw new Error(data?.error || "Failed to load dashboard");
+      if (raw.trim().length > 0) {
+        try {
+          data = JSON.parse(raw) as { error?: string; rows?: DashboardRow[] };
+        } catch {
+          throw new Error(`Dashboard API returned non-JSON response (${response.status})`);
+        }
       }
 
-      setRows(data.rows || []);
+      if (!response.ok) {
+        throw new Error(data?.error || `Failed to load dashboard (${response.status})`);
+      }
+
+      setRows(Array.isArray(data.rows) ? data.rows : []);
     } catch (error) {
       toast({
         title: "Failed to fetch dashboard",
