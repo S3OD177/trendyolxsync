@@ -40,6 +40,10 @@ class TrendyolClient {
     return this.sellerId;
   }
 
+  getStoreFrontCode() {
+    return this.storeFrontCode ?? null;
+  }
+
   private get authHeader() {
     const token =
       this.apiToken || Buffer.from(`${this.apiKey}:${this.apiSecret}`).toString("base64");
