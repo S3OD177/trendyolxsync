@@ -287,7 +287,8 @@ def fetch_buybox_info(
         return {}
 
     # Chunk requests to avoid single bad barcode failing entire batch
-    chunk_size = 20
+    # Reduced chunk size to 10 as larger batches (20-100) were causing 400 Bad Request
+    chunk_size = 10
     all_results = {}
     
     for i in range(0, len(unique_barcodes), chunk_size):
