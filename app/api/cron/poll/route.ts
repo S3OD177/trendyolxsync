@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { acquireJobLock, releaseJobLock } from "@/lib/jobs/lock";
 import { runPoll } from "@/lib/jobs/poll-products";
-import { requireCronSecret } from "@/lib/auth/guards";
+import { env } from "@/lib/config/env";
 
 const LOCK_NAME = "poll_job";
 
 export async function POST(request: NextRequest) {
-  if (!requireCronSecret(request)) {
+  const secret =
+    request.headers.get("x-cron-secret") ||
+    request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+
+  if (!secret || secret !== env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireApiUser } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { trendyolClient } from "@/lib/trendyol/client";
 
@@ -10,11 +9,6 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const user = await requireApiUser(request);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   if (!trendyolClient.isConfigured()) {
     return NextResponse.json({ error: "Trendyol credentials are not configured" }, { status: 400 });
   }

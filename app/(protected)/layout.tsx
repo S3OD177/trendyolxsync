@@ -1,16 +1,14 @@
 import type { ReactNode } from "react";
+import type { Route } from "next";
 import Link from "next/link";
-import { requireUserFromServerHeaders } from "@/lib/auth/cloudflare";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/alerts", label: "Alerts" },
   { href: "/settings", label: "Settings" }
-];
+] satisfies ReadonlyArray<{ href: Route; label: string }>;
 
 export default async function ProtectedLayout({ children }: { children: ReactNode }) {
-  const user = await requireUserFromServerHeaders();
-
   return (
     <div className="min-h-screen">
       <header className="border-b bg-card">
@@ -20,7 +18,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
             <p className="text-xs text-muted-foreground">SAR-only monitoring and manual repricing</p>
           </div>
           <div className="text-right text-sm text-muted-foreground">
-            <div>{user.email}</div>
+            <div>Web Monitor</div>
             <div>Upstream Domain Security</div>
           </div>
         </div>

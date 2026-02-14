@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApiUser } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { breakEvenPrice } from "@/lib/pricing/calculator";
 import { getEffectiveSettingsForProduct } from "@/lib/pricing/effective-settings";
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
-  const user = await requireApiUser(request);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const product = await prisma.product.findUnique({
     where: { id: params.id },
     include: {
@@ -36,7 +30,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     product,
     effectiveSettings,
     breakEven,
-    chart: product.snapshots.map((snapshot) => ({
+    chart: product.snapshots.map((snapshot: (typeof product.snapshots)[number]) => ({
       checkedAt: snapshot.checkedAt,
       ourPrice: snapshot.ourPrice,
       competitorMinPrice: snapshot.competitorMinPrice

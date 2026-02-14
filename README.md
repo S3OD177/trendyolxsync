@@ -6,7 +6,7 @@ Core capabilities:
 - Poll Trendyol seller data every 5 minutes via cron endpoint
 - Store historical snapshots in Prisma/PostgreSQL (SQLite fallback for local dev)
 - Detect alerts (BuyBox loss, undercut, competitor drops, price-war risk)
-- Send in-app alerts + optional SMTP/Telegram notifications
+- Send in-app alerts only
 - Compute safe suggested prices with break-even protection
 - One-click suggested apply and custom updates with loss confirmation guard
 - Currency locked to **SAR (Saudi Riyal)**
@@ -54,7 +54,6 @@ Open: `http://localhost:3000`
 ## Security model
 - App assumes your domain/edge already enforces access control
 - App still protects cron endpoint with `CRON_SECRET`
-- App creates/upserts an audit user from upstream identity headers when available
 
 ## Production deployment on cranl (internal Postgres)
 1. Set `DATABASE_URL` to cranl internal PostgreSQL connection string
@@ -104,7 +103,6 @@ Reference guide:
 - `GET /api/alerts`
 - `POST /api/alerts/mark-read`
 - `GET/POST /api/settings`
-- `POST /api/settings/test-notification`
 - `GET/PATCH /api/products/[id]/settings`
 - `GET /api/products/[id]/details`
 

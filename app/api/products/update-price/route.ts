@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { requireApiUser } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { breakEvenPrice, computeFees } from "@/lib/pricing/calculator";
 import { getEffectiveSettingsForProduct } from "@/lib/pricing/effective-settings";
@@ -26,11 +26,6 @@ const bodySchema = z
   });
 
 export async function POST(request: NextRequest) {
-  const user = await requireApiUser(request);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const payload = await request.json().catch(() => ({}));
   const parsed = bodySchema.safeParse(payload);
 
@@ -113,8 +108,7 @@ export async function POST(request: NextRequest) {
       oldPrice: ourPrice,
       newPrice: priceToApply,
       method,
-      requestedByUserId: user.id,
-      trendyolResponseJson: response.raw
+      trendyolResponseJson: response.raw as Prisma.InputJsonValue
     }
   });
 

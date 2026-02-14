@@ -1,6 +1,5 @@
-import { AlertSeverity, type PriceChangeMethod, type Product } from "@prisma/client";
+import type { Prisma, PriceChangeMethod, Product } from "@prisma/client";
 import { detectAlerts } from "@/lib/alerts/detector";
-import { notifyAllChannels } from "@/lib/alerts/notifier";
 import { prisma } from "@/lib/db/prisma";
 import { breakEvenPrice } from "@/lib/pricing/calculator";
 import { getEffectiveSettingsForProduct, getOrCreateGlobalSettings } from "@/lib/pricing/effective-settings";
@@ -100,7 +99,7 @@ export async function refreshSnapshotForProduct(product: Product) {
       rawPayloadJson: {
         priceStock: priceStock.raw,
         competitor: competitor.raw
-      }
+      } as Prisma.InputJsonValue
     }
   });
 }
@@ -179,17 +178,10 @@ export async function runPoll(): Promise<PollRunSummary> {
             type: candidate.type,
             severity: candidate.severity,
             message: candidate.message,
-            metadataJson: candidate.metadata
+            metadataJson: candidate.metadata as Prisma.InputJsonValue
           }
         });
         alertsCreated += 1;
-
-        const severityTag = candidate.severity === AlertSeverity.CRITICAL ? "CRITICAL" : "ALERT";
-
-        await notifyAllChannels({
-          title: `[${severityTag}] ${candidate.type} - ${product.sku}`,
-          body: `${candidate.message}\nOur price: ${ourPrice ?? "n/a"} SAR\nCompetitor min: ${competitorMin ?? "n/a"} SAR\nSuggested: ${suggestion.suggested ?? "n/a"} SAR`
-        });
       }
     } catch {
       skipped += 1;

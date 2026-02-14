@@ -27,21 +27,6 @@ const envSchema = z.object({
   TRENDYOL_BASE_URL: z.string().url().default("https://apigw.trendyol.com"),
   TRENDYOL_USER_AGENT: z.string().optional(),
 
-  SMTP_HOST: z.string().optional(),
-  SMTP_PORT: z
-    .string()
-    .optional()
-    .transform((value) => (value ? Number(value) : undefined)),
-  SMTP_USER: z.string().optional(),
-  SMTP_PASS: z.string().optional(),
-  ALERT_EMAIL_TO: z.string().optional(),
-
-  TELEGRAM_BOT_TOKEN: z.string().optional(),
-  TELEGRAM_CHAT_ID: z.string().optional(),
-
-  ADMIN_EMAIL: z.string().email().default("admin@example.com"),
-  ADMIN_PASSWORD: z.string().optional(),
-
   DEFAULT_VAT_RATE: z
     .string()
     .optional()

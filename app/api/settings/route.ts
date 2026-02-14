@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireApiUser } from "@/lib/auth/guards";
 import { env } from "@/lib/config/env";
 import { prisma } from "@/lib/db/prisma";
 import { getOrCreateGlobalSettings } from "@/lib/pricing/effective-settings";
@@ -28,35 +27,17 @@ function integrationStatus() {
       (env.TRENDYOL_SUPPLIER_ID || env.TRENDYOL_SELLER_ID) &&
       env.TRENDYOL_API_KEY &&
       env.TRENDYOL_API_SECRET
-    ),
-    smtpConfigured: !!(
-      env.SMTP_HOST &&
-      env.SMTP_PORT &&
-      env.SMTP_USER &&
-      env.SMTP_PASS &&
-      env.ALERT_EMAIL_TO
-    ),
-    telegramConfigured: !!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID)
+    )
   };
 }
 
 export async function GET(request: NextRequest) {
-  const user = await requireApiUser(request);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const settings = await getOrCreateGlobalSettings();
 
   return NextResponse.json({ settings, integrations: integrationStatus() });
 }
 
 export async function POST(request: NextRequest) {
-  const user = await requireApiUser(request);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const payload = await request.json().catch(() => ({}));
   const parsed = updateSchema.safeParse(payload);
 

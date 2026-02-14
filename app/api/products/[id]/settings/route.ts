@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireApiUser } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 
 const updateSchema = z.object({
@@ -22,11 +21,6 @@ const updateSchema = z.object({
 });
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
-  const user = await requireApiUser(request);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const product = await prisma.product.findUnique({
     where: { id: params.id },
     include: { settings: true }
@@ -40,11 +34,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
-  const user = await requireApiUser(request);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const payload = await request.json().catch(() => ({}));
   const parsed = updateSchema.safeParse(payload);
 

@@ -118,41 +118,6 @@ export function SettingsClient() {
     }
   };
 
-  const sendTestNotification = async (channel: "email" | "telegram" | "all") => {
-    try {
-      const response = await fetch("/api/settings/test-notification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channel })
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to send test notification");
-      }
-
-      const reason = data?.result?.reason;
-      const sent = data?.result?.sent;
-      const channelResult =
-        channel === "all"
-          ? "Triggered all channel tests."
-          : sent === false
-            ? reason || "Channel is not configured."
-            : "Notification sent.";
-
-      toast({
-        title: "Test notification sent",
-        description: `Channel: ${channel}. ${channelResult}`
-      });
-    } catch (error) {
-      toast({
-        title: "Notification test failed",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive"
-      });
-    }
-  };
-
   if (loading || !form) {
     return <p className="text-sm text-muted-foreground">Loading settings...</p>;
   }
@@ -169,31 +134,6 @@ export function SettingsClient() {
             <Badge variant={integrations.trendyolConfigured ? "success" : "destructive"}>
               {integrations.trendyolConfigured ? "Configured" : "Missing"}
             </Badge>
-          </div>
-          <div className="flex items-center justify-between rounded-md border p-3">
-            <span>SMTP Email</span>
-            <Badge variant={integrations.smtpConfigured ? "success" : "warning"}>
-              {integrations.smtpConfigured ? "Configured" : "Optional"}
-            </Badge>
-          </div>
-          <div className="flex items-center justify-between rounded-md border p-3">
-            <span>Telegram Bot</span>
-            <Badge variant={integrations.telegramConfigured ? "success" : "warning"}>
-              {integrations.telegramConfigured ? "Configured" : "Optional"}
-            </Badge>
-          </div>
-          <div className="md:col-span-2">
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={() => sendTestNotification("email")}>
-                Test Email
-              </Button>
-              <Button type="button" variant="outline" onClick={() => sendTestNotification("telegram")}>
-                Test Telegram
-              </Button>
-              <Button type="button" onClick={() => sendTestNotification("all")}>
-                Test All Channels
-              </Button>
-            </div>
           </div>
         </CardContent>
       </Card>

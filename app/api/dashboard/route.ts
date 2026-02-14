@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireApiUser } from "@/lib/auth/guards";
 import { buildDashboardRows } from "@/lib/dashboard/service";
 
 const querySchema = z.object({
@@ -11,11 +10,6 @@ const querySchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
-  const user = await requireApiUser(request);
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const parsed = querySchema.safeParse(Object.fromEntries(request.nextUrl.searchParams.entries()));
 
   if (!parsed.success) {

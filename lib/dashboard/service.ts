@@ -58,7 +58,9 @@ export async function buildDashboardRows() {
     const deltaSar =
       ourPrice !== null && competitorMinPrice !== null ? ourPrice - competitorMinPrice : null;
     const deltaPct =
-      deltaSar !== null && ourPrice > 0 ? Number(((deltaSar / ourPrice) * 100).toFixed(2)) : null;
+      deltaSar !== null && ourPrice !== null && ourPrice > 0
+        ? Number(((deltaSar / ourPrice) * 100).toFixed(2))
+        : null;
 
     const pricing = ourPrice !== null ? computeFees(ourPrice, settings) : null;
 
