@@ -52,10 +52,14 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ rows });
   } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to build dashboard data";
+
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Failed to build dashboard data"
+        error: errorMessage.includes("does not exist")
+          ? `${errorMessage}. Run Prisma migrations on production database.`
+          : errorMessage
       },
       { status: 500 }
     );

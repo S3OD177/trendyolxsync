@@ -3,6 +3,9 @@ import type { Route } from "next";
 import Link from "next/link";
 import { LockButton } from "@/components/auth/lock-button";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/alerts", label: "Alerts" },
