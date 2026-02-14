@@ -358,7 +358,7 @@ export function DashboardClient() {
     {
       key: "suggested",
       header: "Suggested",
-      cell: (row) => <span className="font-medium text-primary">{formatSar(row.suggestedPrice)}</span>
+      cell: (row) => <span className="font-bold text-primary">{formatSar(row.suggestedPrice)}</span>
     },
     {
       key: "margin",

@@ -31,10 +31,10 @@ def main():
     print(f"Testing URL: {url}")
     
     try:
-        # Fetch specific item
-        barcode = "6941812798126"
-        print(f"Searching for barcode: {barcode}")
-        response = requests.get(url, headers=headers, params={"barcode": barcode, "supplierId": int(seller_id)}, timeout=30)
+        # Fetch specific item by productMainId
+        product_main_id = "14C-4/128-black"
+        print(f"Searching for productMainId: {product_main_id}")
+        response = requests.get(url, headers=headers, params={"productMainId": product_main_id, "supplierId": int(seller_id)}, timeout=30)
         print(f"Response Code: {response.status_code}")
         if response.status_code == 200:
             data = response.json()

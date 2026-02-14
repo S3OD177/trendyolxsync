@@ -33,6 +33,11 @@ INSERT INTO trendyol_products (
     archived,
     rejected,
     blacklisted,
+    rejected,
+    blacklisted,
+    buybox_price,
+    buybox_competitor_count,
+    buybox_status,
     last_update_epoch_ms,
     raw,
     synced_at
@@ -53,6 +58,10 @@ VALUES (
     %(archived)s,
     %(rejected)s,
     %(blacklisted)s,
+    %(blacklisted)s,
+    %(buybox_price)s,
+    %(buybox_competitor_count)s,
+    %(buybox_status)s,
     %(last_update_epoch_ms)s,
     %(raw)s,
     NOW()
@@ -72,6 +81,11 @@ DO UPDATE SET
     archived = EXCLUDED.archived,
     rejected = EXCLUDED.rejected,
     blacklisted = EXCLUDED.blacklisted,
+    rejected = EXCLUDED.rejected,
+    blacklisted = EXCLUDED.blacklisted,
+    buybox_price = EXCLUDED.buybox_price,
+    buybox_competitor_count = EXCLUDED.buybox_competitor_count,
+    buybox_status = EXCLUDED.buybox_status,
     last_update_epoch_ms = EXCLUDED.last_update_epoch_ms,
     raw = EXCLUDED.raw,
     synced_at = NOW();
@@ -95,6 +109,11 @@ CREATE TABLE IF NOT EXISTS trendyol_products (
     archived BOOLEAN,
     rejected BOOLEAN,
     blacklisted BOOLEAN,
+    rejected BOOLEAN,
+    blacklisted BOOLEAN,
+    buybox_price NUMERIC(18, 2),
+    buybox_competitor_count INTEGER,
+    buybox_status TEXT,
     last_update_epoch_ms BIGINT,
     raw JSONB NOT NULL,
     synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -248,6 +267,72 @@ def fetch_products_page(
     raise RuntimeError("Failed to fetch Trendyol products due to repeated rate limiting")
 
 
+def fetch_buybox_info(
+    session: requests.Session,
+    settings: Settings,
+    barcodes: list[str],
+) -> dict[str, Any]:
+    if not barcodes:
+        return {}
+
+    url = (
+        f"{settings.base_url}/integration/product/sellers/"
+        f"{settings.seller_id}/products/buybox-information"
+    )
+
+    # Dedup and filter empty or whitespace-only barcodes
+    unique_barcodes = list(set(str(b).strip() for b in barcodes if b and str(b).strip()))
+    if not unique_barcodes:
+        print("DEBUG: No valid barcodes to fetch buybox for.", file=sys.stderr)
+        return {}
+
+    # Chunk requests to avoid single bad barcode failing entire batch
+    chunk_size = 20
+    all_results = {}
+    
+    for i in range(0, len(unique_barcodes), chunk_size):
+        chunk = unique_barcodes[i:i + chunk_size]
+        payload = {
+            "barcodes": chunk,
+            "supplierId": settings.seller_id,
+        }
+        
+        # Retry loop for each chunk
+        for attempt in range(3):
+            try:
+                headers = session.headers.copy()
+                headers["storeFrontCode"] = "SA"
+                
+                response = session.post(url, json=payload, headers=headers, timeout=settings.timeout_seconds)
+                
+                if response.status_code == 429 and attempt < 2:
+                    time.sleep((attempt + 1) * 1.5)
+                    continue
+                    
+                if response.status_code >= 400:
+                    print(f"Warning: Failed to fetch buybox chunk {i}: {response.status_code} {response.text[:100]}", file=sys.stderr)
+                    break # Skip this chunk on error (don't retry 400s as likely data issue)
+
+                data = response.json()
+                entries = []
+                if isinstance(data, dict):
+                    entries = data.get("buyboxInfo", [])
+                elif isinstance(data, list):
+                    entries = data
+                
+                for entry in entries:
+                    bc = entry.get("barcode")
+                    if bc:
+                        all_results[bc] = entry
+                break # Success, move to next chunk
+
+            except Exception as e:
+                print(f"Warning: Exception fetching buybox chunk: {e}", file=sys.stderr)
+                break
+                
+    return all_results
+
+
 def ensure_schema(conn: psycopg.Connection[Any]) -> None:
     with conn.cursor() as cur:
         cur.execute(CREATE_TABLE_SQL)
@@ -288,6 +373,10 @@ def upsert_products(
                 "archived": item.get("archived"),
                 "rejected": item.get("rejected"),
                 "blacklisted": item.get("blacklisted"),
+                "blacklisted": item.get("blacklisted"),
+                "buybox_price": to_decimal(item.get("buybox_price")),
+                "buybox_competitor_count": item.get("buybox_competitor_count"),
+                "buybox_status": item.get("buybox_status"),
                 "last_update_epoch_ms": item.get("lastUpdateDate"),
                 "raw": Json(item),
             }
@@ -318,6 +407,7 @@ def main() -> int:
             "User-Agent": settings.user_agent,
             "Accept": "application/json",
             "Content-Type": "application/json",
+            "storeFrontCode": "SA",
         }
     )
 
@@ -351,6 +441,52 @@ def main() -> int:
                 raise RuntimeError("Unexpected payload: 'content' field is not a list")
 
             fetched += len(content)
+            
+            # --- Fetch & Merge BuyBox Info ---
+            barcodes = [str(item.get("barcode")) for item in content if item.get("barcode")]
+            buybox_map = fetch_buybox_info(session, settings, barcodes)
+            
+            for item in content:
+                bc = str(item.get("barcode")) if item.get("barcode") else None
+                sale_price = to_decimal(item.get("salePrice"))
+                
+                if bc and bc in buybox_map:
+                    # We have competitor data
+                    entry = buybox_map[bc]
+                    item["buybox_price"] = entry.get("buyboxPrice")
+                    # "hasMultipleSeller": true/false
+                    has_multiple = entry.get("hasMultipleSeller", False)
+                    # If hasMultipleSeller is True, it means at least 1 competitor + us? 
+                    # Or just multiple sellers total. 
+                    # If we are winning, order=1.
+                    order = entry.get("buyboxOrder")
+                    
+                    # Logic: 
+                    # If hasMultipleSeller is True, assume at least 1 competitor.
+                    # If False, maybe just us? 
+                    # check_buybox.py for "3565080150016" (User's other item) returned:
+                    # "buyboxOrder": 2, "hasMultipleSeller": true.
+                    
+                    item["buybox_competitor_count"] = 2 if has_multiple else 1 
+                    # Approximate count since API doesn't give exact number
+                    
+                    if order == 1:
+                        item["buybox_status"] = "WIN"
+                    else:
+                        item["buybox_status"] = "LOSE"
+                        
+                else:
+                    # No data for this barcode => Solo Winner Logic
+                    # If we have a valid price, we assume WIN.
+                    if sale_price is not None:
+                        item["buybox_competitor_count"] = 0
+                        item["buybox_status"] = "WIN"
+                        item["buybox_price"] = sale_price # We are the buybox price
+                    else:
+                        item["buybox_status"] = "UNKNOWN"
+
+            # ---------------------------------
+
             total_pages = data.get("totalPages")
 
             if not content:
