@@ -29,3 +29,6 @@ prisma/dev.db-journal
 
 # tests
 coverage
+
+# typescript cache
+tsconfig.tsbuildinfo
