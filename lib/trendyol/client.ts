@@ -146,7 +146,7 @@ export class TrendyolClient {
   }
 
   private extractPrice(source: unknown): number | null {
-    return this.pickNumber(source, [
+    const price = this.pickNumber(source, [
       "salePrice",
       "listPrice",
       "discountedPrice",
@@ -165,6 +165,14 @@ export class TrendyolClient {
       "priceInfo.listPrice",
       "priceInfo.sellingPrice"
     ]);
+
+    // Trendyol may return 0 / null-like prices for inactive or unpublished listings.
+    // Treat non-positive values as unknown to avoid unsafe suggestions.
+    if (price === null || price <= 0) {
+      return null;
+    }
+
+    return price;
   }
 
   private extractStock(source: unknown): number | null {
@@ -228,14 +236,19 @@ export class TrendyolClient {
       return result;
     }
 
-    const direct = [result?.content, result?.items, result?.products];
+    const direct = [result?.content, result?.items, result?.products, result?.buyboxInfo];
     for (const candidate of direct) {
       if (Array.isArray(candidate)) {
         return candidate;
       }
     }
 
-    const nested = [result?.data?.content, result?.data?.items, result?.data?.products];
+    const nested = [
+      result?.data?.content,
+      result?.data?.items,
+      result?.data?.products,
+      result?.data?.buyboxInfo
+    ];
     for (const candidate of nested) {
       if (Array.isArray(candidate)) {
         return candidate;
@@ -243,6 +256,70 @@ export class TrendyolClient {
     }
 
     return [];
+  }
+
+  private parseBuyboxEntry(entry: any): TrendyolCompetitorData {
+    const competitorMinPrice =
+      this.pickNumber(entry, ["buyboxPrice", "buyboxPrice.value", "price", "lowestPrice", "minimumPrice"]) ??
+      this.extractPrice(entry);
+
+    const hasMultipleSeller =
+      typeof entry?.hasMultipleSeller === "boolean"
+        ? entry.hasMultipleSeller
+        : typeof entry?.hasMultipleSellers === "boolean"
+          ? entry.hasMultipleSellers
+          : null;
+
+    const competitorCount = hasMultipleSeller === null ? null : hasMultipleSeller ? 2 : 1;
+
+    const buyboxOrder = this.pickNumber(entry, ["buyboxOrder", "order", "rank"]);
+
+    const buyboxSellerId =
+      entry?.buyboxSellerId?.toString?.() ??
+      entry?.winnerSellerId?.toString?.() ??
+      entry?.sellerId?.toString?.() ??
+      entry?.buyboxSeller?.sellerId?.toString?.() ??
+      null;
+
+    const buyboxStatus =
+      typeof buyboxOrder === "number"
+        ? buyboxOrder === 1
+          ? "WIN"
+          : "LOSE"
+        : buyboxSellerId
+          ? String(buyboxSellerId) === String(this.sellerId)
+            ? "WIN"
+            : "LOSE"
+          : "UNKNOWN";
+
+    return {
+      competitorMinPrice,
+      competitorCount,
+      buyboxSellerId,
+      buyboxStatus,
+      raw: entry
+    };
+  }
+
+  async fetchBuyboxInformation(barcodes: string[]) {
+    const unique = Array.from(new Set(barcodes.map((value) => String(value).trim()).filter(Boolean)));
+
+    if (!unique.length) {
+      return { raw: { note: "No barcodes provided" }, entries: [] as any[] };
+    }
+
+    const raw = await this.request<any>(
+      `/integration/product/sellers/${this.sellerId}/products/buybox-information`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          barcodes: unique,
+          supplierId: this.sellerId
+        })
+      }
+    );
+
+    return { raw, entries: this.extractListPayload(raw) };
   }
 
   private flattenProductsWithVariants(rows: any[]): any[] {
@@ -456,63 +533,35 @@ export class TrendyolClient {
     }
 
     try {
-      const raw = await this.request<any>(
-        `/integration/product/sellers/${this.sellerId}/products/buybox-information`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            barcodes: [reference],
-            supplierId: this.sellerId
-          })
-        }
-      );
+      const { raw, entries } = await this.fetchBuyboxInformation([reference]);
 
-      const entries = this.extractListPayload(raw);
-      const entry = entries.find((item: any) =>
-        [String(item?.barcode ?? ""), String(item?.stockCode ?? "")].includes(String(reference))
-      ) ?? entries[0] ?? raw;
+      const entry =
+        entries.find((item: any) =>
+          [String(item?.barcode ?? ""), String(item?.stockCode ?? "")].includes(String(reference))
+        ) ?? entries[0];
 
-      const offerRows: any[] = Array.isArray(entry?.offers)
-        ? entry.offers
-        : Array.isArray(entry?.sellers)
-          ? entry.sellers
-          : [];
+      if (!entry) {
+        return {
+          competitorMinPrice: null,
+          competitorCount: null,
+          buyboxSellerId: null,
+          buyboxStatus: "UNKNOWN",
+          raw: { note: "Buybox lookup returned no entries", response: raw }
+        };
+      }
 
-      const minOfferPrice = offerRows
-        .map((offer) => this.extractPrice(offer))
-        .filter((value): value is number => value !== null)
-        .reduce<number | null>((min, price) => (min === null || price < min ? price : min), null);
-
-      const competitorMinPrice = this.pickNumber(entry, [
-        "buyboxPrice",
-        "competitorMinPrice",
-        "minimumPrice",
-        "lowestPrice",
-        "price",
-        "winnerPrice"
-      ]) ?? minOfferPrice;
-
-      const buyboxSellerId =
-        entry?.buyboxSellerId?.toString?.() ??
-        entry?.winnerSellerId?.toString?.() ??
-        entry?.sellerId?.toString?.() ??
-        entry?.buyboxSeller?.sellerId?.toString?.() ??
-        null;
-
-      const competitorCount = this.pickNumber(entry, ["competitorCount", "sellerCount"]) ?? (offerRows.length ? offerRows.length : null);
-
-      const buyboxStatus = buyboxSellerId
-        ? String(buyboxSellerId) === String(this.sellerId)
-          ? "WIN"
-          : "LOSE"
-        : "UNKNOWN";
+      const parsed = this.parseBuyboxEntry(entry);
 
       return {
-        competitorMinPrice,
-        competitorCount,
-        buyboxSellerId,
-        buyboxStatus,
-        raw
+        ...parsed,
+        // Keep raw response for debugging without expanding to huge payloads.
+        raw: {
+          source: "buybox_information",
+          entry: parsed.raw,
+          responseMeta: {
+            hasEntries: Array.isArray(entries) ? entries.length : 0
+          }
+        }
       };
     } catch (error) {
       return {
