@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { buildDashboardRows } from "@/lib/dashboard/service";
 
+export const dynamic = "force-dynamic";
+
 const querySchema = z.object({
   lostBuyboxOnly: z.coerce.boolean().optional(),
   lowMarginRisk: z.coerce.boolean().optional(),

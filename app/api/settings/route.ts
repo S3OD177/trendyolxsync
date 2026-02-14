@@ -4,6 +4,8 @@ import { env } from "@/lib/config/env";
 import { prisma } from "@/lib/db/prisma";
 import { getOrCreateGlobalSettings } from "@/lib/pricing/effective-settings";
 
+export const dynamic = "force-dynamic";
+
 const updateSchema = z.object({
   commissionRate: z.number().min(0).max(1),
   serviceFeeType: z.enum(["FIXED", "PERCENT"]),

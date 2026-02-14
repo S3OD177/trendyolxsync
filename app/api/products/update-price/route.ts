@@ -8,6 +8,8 @@ import { suggestedPrice } from "@/lib/pricing/suggested-price";
 import { refreshSnapshotForProduct } from "@/lib/jobs/poll-products";
 import { trendyolClient } from "@/lib/trendyol/client";
 
+export const dynamic = "force-dynamic";
+
 const bodySchema = z
   .object({
     productId: z.string().min(1),

@@ -4,6 +4,7 @@ import { runPoll } from "@/lib/jobs/poll-products";
 import { env } from "@/lib/config/env";
 
 const LOCK_NAME = "poll_job";
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   const secret =

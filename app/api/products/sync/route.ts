@@ -3,6 +3,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { trendyolClient } from "@/lib/trendyol/client";
 
+export const dynamic = "force-dynamic";
+
 const bodySchema = z.object({
   maxPages: z.number().int().min(1).max(50).default(5),
   pageSize: z.number().int().min(1).max(200).default(50)
