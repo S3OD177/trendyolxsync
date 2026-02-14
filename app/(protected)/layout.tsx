@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Route } from "next";
 import Link from "next/link";
+import { LockButton } from "@/components/auth/lock-button";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
@@ -19,7 +20,8 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
           </div>
           <div className="text-right text-sm text-muted-foreground">
             <div>Web Monitor</div>
-            <div>Upstream Domain Security</div>
+            <div className="mb-2">Upstream Domain Security</div>
+            <LockButton />
           </div>
         </div>
       </header>

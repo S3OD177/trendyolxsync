@@ -53,6 +53,7 @@ Open: `http://localhost:3000`
 
 ## Security model
 - App assumes your domain/edge already enforces access control
+- App enforces a 4-digit PIN session (`APP_PIN`) before dashboard/API access
 - App still protects cron endpoint with `CRON_SECRET`
 
 ## Production deployment on cranl (internal Postgres)
@@ -62,8 +63,9 @@ Open: `http://localhost:3000`
 - `TRENDYOL_API_KEY`
 - `TRENDYOL_API_SECRET`
 - Optional `TRENDYOL_USER_AGENT`
-3. Set `CRON_SECRET`
-4. Run migration deploy and start app
+3. Set `APP_PIN` (4 digits, default `3698`)
+4. Set `CRON_SECRET`
+5. Run migration deploy and start app
 
 ## Cron trigger (every 5 minutes)
 Endpoint:

@@ -18,6 +18,7 @@ const envSchema = z.object({
 
   APP_URL: z.string().url().default("http://localhost:3000"),
   CRON_SECRET: z.string().min(8).default("change-me-in-production"),
+  APP_PIN: z.string().regex(/^\d{4}$/).default("3698"),
 
   TRENDYOL_SUPPLIER_ID: z.string().optional(),
   TRENDYOL_SELLER_ID: z.string().optional(),
