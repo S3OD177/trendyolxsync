@@ -176,3 +176,29 @@ model JobLock {
   lockedUntil DateTime
   updatedAt   DateTime @updatedAt
 }
+
+model ShipmentPackage {
+  id                 String   @id @default(cuid())
+  sellerId           BigInt
+  packageNumber      String
+  orderNumber        String?
+  status             String
+  cargoProvider      String?
+  trackingNumber     String?
+  trackingLink       String?
+  
+  lastModifiedAt     DateTime?
+  createdAt          DateTime?
+  estimatedDeliveryStart DateTime?
+  estimatedDeliveryEnd   DateTime?
+  
+  linesCount         Int?
+  rawPayload         Json
+  syncedAt           DateTime @default(now())
+
+  @@unique([sellerId, packageNumber])
+  @@index([status])
+  @@index([lastModifiedAt(sort: Desc)])
+  @@index([syncedAt(sort: Desc)])
+  @@map("shipment_packages")
+}

@@ -3,10 +3,10 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Boxes, Loader2, RefreshCw, ShieldAlert, TriangleAlert } from "lucide-react";
+import { Boxes, Loader2, RefreshCw, ShieldAlert, TrendingDown, TriangleAlert, Activity, ArrowUpRight } from "lucide-react";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Modal } from "@/components/ui/dialog";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toaster";
 import { formatSar } from "@/lib/utils/money";
+import { cn } from "@/lib/utils/cn";
 
 interface DashboardRow {
   productId: string;
@@ -277,21 +278,21 @@ export function DashboardClient() {
   const renderRowActions = (row: DashboardRow, compact = false) => (
     <div className={compact ? "grid grid-cols-3 gap-2" : "flex flex-wrap justify-end gap-2"}>
       <Link href={`/products/${row.productId}` as Route}>
-        <Button size="sm" variant="outline" className={compact ? "w-full" : undefined}>
+        <Button size="sm" variant="ghost" className={compact ? "w-full" : undefined}>
           View
         </Button>
       </Link>
       <Button
         size="sm"
+        variant="outline"
         onClick={() => submitUpdate(row, "SUGGESTED")}
         disabled={updatingId === row.productId || row.suggestedPrice === null}
         className={compact ? "w-full" : undefined}
       >
-        Apply Suggested
+        Suggest
       </Button>
       <Button
         size="sm"
-        variant="secondary"
         onClick={() => openCustomUpdate(row)}
         disabled={updatingId === row.productId}
         className={compact ? "w-full" : undefined}
@@ -304,43 +305,36 @@ export function DashboardClient() {
   const columns: DataTableColumn<DashboardRow>[] = [
     {
       key: "sku",
-      header: "SKU",
-      cell: (row) => <span className="font-semibold text-slate-900">{row.sku}</span>
-    },
-    {
-      key: "barcode",
-      header: "Barcode",
-      className: "hidden xl:table-cell",
-      cell: (row) => row.barcode || "-"
+      header: "Product",
+      cell: (row) => (
+        <div className="flex flex-col">
+          <span className="font-semibold text-foreground">{row.sku}</span>
+          <span className="text-xs text-muted-foreground">{row.barcode || "-"}</span>
+        </div>
+      )
     },
     {
       key: "title",
       header: "Title",
       cell: (row) => (
-        <div className="max-w-[320px] text-sm font-medium text-slate-800" title={row.title}>
+        <div className="max-w-[320px] text-sm font-medium text-muted-foreground" title={row.title}>
           {row.title}
         </div>
       )
     },
     {
-      key: "listingId",
-      header: "Listing ID",
-      className: "hidden 2xl:table-cell",
-      cell: (row) => <span className="text-xs text-slate-500">{row.listingId || "-"}</span>
-    },
-    {
       key: "ourPrice",
-      header: "Our Price",
-      cell: (row) => <span className="font-medium text-slate-900">{formatSar(row.ourPrice)}</span>
+      header: "Price",
+      cell: (row) => <span className="font-medium text-foreground">{formatSar(row.ourPrice)}</span>
     },
     {
       key: "competitorMin",
-      header: "BuyBox Price",
-      cell: (row) => <span className="font-medium">{formatSar(row.competitorMinPrice)}</span>
+      header: "BuyBox",
+      cell: (row) => <span className="font-medium text-muted-foreground">{formatSar(row.competitorMinPrice)}</span>
     },
     {
       key: "delta",
-      header: "Difference",
+      header: "Diff",
       className: "hidden xl:table-cell",
       cell: (row) => {
         if (row.deltaSar === null) {
@@ -349,21 +343,21 @@ export function DashboardClient() {
 
         const positive = row.deltaSar > 0;
         return (
-          <span className={positive ? "font-medium text-red-600" : "font-medium text-emerald-700"}>
-            {formatSar(row.deltaSar)} ({row.deltaPct?.toFixed(2)}%)
+          <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-secondary", positive ? "text-destructive" : "text-emerald-500")}>
+            {formatSar(row.deltaSar)} ({row.deltaPct?.toFixed(1)}%)
           </span>
         );
       }
     },
     {
       key: "buybox",
-      header: "BuyBox",
+      header: "Status",
       cell: (row) => <StatusBadge status={row.buyboxStatus} />
     },
     {
       key: "suggested",
       header: "Suggested",
-      cell: (row) => formatSar(row.suggestedPrice)
+      cell: (row) => <span className="font-medium text-primary">{formatSar(row.suggestedPrice)}</span>
     },
     {
       key: "margin",
@@ -376,26 +370,17 @@ export function DashboardClient() {
 
         const isRisk = (row.marginPct ?? 0) <= 5;
         return (
-          <span className={isRisk ? "font-medium text-amber-700" : "font-medium text-emerald-700"}>
-            {formatSar(row.marginSar)} ({row.marginPct?.toFixed(2)}%)
+          <span className={isRisk ? "font-medium text-amber-500" : "font-medium text-emerald-500"}>
+            {formatSar(row.marginSar)}
+            <span className="ml-1 text-xs text-muted-foreground">({row.marginPct?.toFixed(1)}%)</span>
           </span>
         );
       }
     },
     {
-      key: "last",
-      header: "Last Check",
-      className: "hidden xl:table-cell",
-      cell: (row) => (
-        <span className="text-xs text-slate-500">
-          {row.lastCheckedAt ? new Date(row.lastCheckedAt).toLocaleString() : "-"}
-        </span>
-      )
-    },
-    {
       key: "actions",
-      header: "Actions",
-      className: "min-w-[240px] text-right",
+      header: "",
+      className: "text-right",
       cell: (row) => renderRowActions(row)
     }
   ];
@@ -406,171 +391,178 @@ export function DashboardClient() {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="metric-card border-cyan-200/70">
-          <CardHeader className="pb-1">
-            <CardTitle className="text-sm font-semibold text-slate-600">Monitored Products</CardTitle>
+        <Card className="glass-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Monitored Products
+            </CardTitle>
+            <Boxes className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between">
-              <p className="text-3xl font-bold text-slate-900">{summary.total}</p>
-              <Boxes className="h-5 w-5 text-cyan-600" />
-            </div>
+            <div className="text-2xl font-bold">{summary.total}</div>
+            <p className="text-xs text-muted-foreground">
+              Total active SKUs being tracked
+            </p>
           </CardContent>
         </Card>
-        <Card className="metric-card border-red-200/70">
-          <CardHeader className="pb-1">
-            <CardTitle className="text-sm font-semibold text-slate-600">Lost BuyBox</CardTitle>
+        <Card className="glass-card border-l-4 border-l-destructive/50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Lost BuyBox</CardTitle>
+            <ShieldAlert className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between">
-              <p className="text-3xl font-bold text-red-600">{summary.lost}</p>
-              <ShieldAlert className="h-5 w-5 text-red-500" />
-            </div>
+            <div className="text-2xl font-bold text-destructive">{summary.lost}</div>
+            <p className="text-xs text-muted-foreground">
+              Products where we do not have the BuyBox
+            </p>
           </CardContent>
         </Card>
-        <Card className="metric-card border-amber-200/70">
-          <CardHeader className="pb-1">
-            <CardTitle className="text-sm font-semibold text-slate-600">Low Margin Risk</CardTitle>
+        <Card className="glass-card border-l-4 border-l-amber-500/50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Margin Risk</CardTitle>
+            <TriangleAlert className="h-4 w-4 text-amber-500" />
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between">
-              <p className="text-3xl font-bold text-amber-600">{summary.risk}</p>
-              <TriangleAlert className="h-5 w-5 text-amber-600" />
-            </div>
+            <div className="text-2xl font-bold text-amber-500">{summary.risk}</div>
+            <p className="text-xs text-muted-foreground">
+              Products with margin &lt; 5%
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="surface-panel">
-        <CardHeader className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+      <Card className="glass border-none shadow-none bg-transparent">
+        <CardHeader className="px-0 pt-0 pb-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle className="text-lg text-slate-900">SKU Monitoring</CardTitle>
-              <p className="mt-1 text-sm text-slate-500">
-                Live market visibility, safe suggested pricing, and manual updates.
-              </p>
-              <p className="mt-1 text-xs text-slate-400">
-                Catalog sync runs automatically in every 5-minute cron poll.
-              </p>
-              <p className="mt-1 text-xs text-slate-400">
-                Refresh runs an immediate protected poll for live prices.
-              </p>
+              <CardTitle>Market Overview</CardTitle>
+              <CardDescription>
+                Real-time BuyBox status and competitor pricing.
+              </CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Button
+                size="sm"
                 variant="outline"
                 onClick={() => triggerPoll(true)}
                 disabled={polling}
-                className="border-slate-300 bg-white"
+                className="bg-background/50 backdrop-blur-sm"
               >
                 {polling ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <RefreshCw className="mr-2 h-4 w-4" />
+                  <RefreshCw className="mr-2 h-3.5 w-3.5" />
                 )}
-                Refresh
+                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                  Refresh Data
+                </span>
               </Button>
             </div>
           </div>
-
-          <div className="surface-muted grid gap-3 p-3 md:grid-cols-4">
-            <Input
-              placeholder="Search SKU/title"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              className="bg-white"
-            />
-            <Select
-              value={sort}
-              onChange={(event) => setSort(event.target.value as "latest" | "largest_delta" | "low_margin")}
-              options={[
-                { label: "Latest", value: "latest" },
-                { label: "Largest Delta", value: "largest_delta" },
-                { label: "Low Margin", value: "low_margin" }
-              ]}
-            />
-            <Checkbox
-              checked={lostOnly}
-              onChange={(event) => setLostOnly(event.target.checked)}
-              label="Lost BuyBox only"
-            />
-            <Checkbox
-              checked={lowMarginRisk}
-              onChange={(event) => setLowMarginRisk(event.target.checked)}
-              label="Low margin risk"
-            />
-          </div>
         </CardHeader>
-
-        <CardContent className="space-y-4">
-          {apiWarning ? (
-            <div className="rounded-xl border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-              {apiWarning}
+        <CardContent className="p-0">
+          <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center">
+            <div className="relative flex-1">
+              <Input
+                placeholder="Filter by SKU or title..."
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className="max-w-sm bg-background/50"
+              />
             </div>
-          ) : null}
-
-          {loading ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading dashboard...
-            </div>
-          ) : (
-            <>
-              <div className="space-y-3 lg:hidden">
-                {rows.length === 0 ? (
-                  <div className="surface-muted p-6 text-center text-sm text-slate-500">
-                    No products found.
-                  </div>
-                ) : (
-                  rows.map((row) => (
-                    <div key={row.productId} className="surface-muted p-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-900">{row.sku}</p>
-                          <p className="line-clamp-2 text-xs text-slate-500">{row.title}</p>
-                        </div>
-                        <StatusBadge status={row.buyboxStatus} />
-                      </div>
-
-                      <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs text-slate-600">
-                        <div>
-                          <p className="text-[11px] uppercase tracking-wide text-slate-400">Our Price</p>
-                          <p className="text-sm font-semibold text-slate-900">{formatSar(row.ourPrice)}</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] uppercase tracking-wide text-slate-400">Competitor</p>
-                          <p className="text-sm font-semibold">{formatSar(row.competitorMinPrice)}</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] uppercase tracking-wide text-slate-400">Suggested</p>
-                          <p className="text-sm font-semibold">{formatSar(row.suggestedPrice)}</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] uppercase tracking-wide text-slate-400">Margin</p>
-                          <p className="text-sm font-semibold">
-                            {row.marginSar === null
-                              ? "-"
-                              : `${formatSar(row.marginSar)} (${row.marginPct?.toFixed(2)}%)`}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-3">{renderRowActions(row, true)}</div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div className="hidden lg:block">
-                <DataTable
-                  columns={columns}
-                  data={rows}
-                  getRowId={(row) => row.productId}
-                  emptyText="No products found."
+            <div className="flex flex-wrap items-center gap-2">
+              <Select
+                value={sort}
+                onChange={(event) => setSort(event.target.value as "latest" | "largest_delta" | "low_margin")}
+                options={[
+                  { label: "Latest Updates", value: "latest" },
+                  { label: "Largest Price Gap", value: "largest_delta" },
+                  { label: "Critical Margins", value: "low_margin" }
+                ]}
+              />
+              <div className="flex items-center space-x-2 rounded-md border bg-background/50 p-2">
+                <Checkbox
+                  checked={lostOnly}
+                  onChange={(event) => setLostOnly(event.target.checked)}
+                  id="lost-only"
                 />
+                <Label htmlFor="lost-only" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Lost BuyBox
+                </Label>
               </div>
-            </>
-          )}
+            </div>
+          </div>
+
+          <div className="rounded-md border bg-background/50 backdrop-blur-sm">
+            {apiWarning ? (
+              <div className="border-b bg-amber-500/10 px-4 py-2 text-sm text-amber-500">
+                <Activity className="mr-2 inline-block h-3 w-3" />
+                {apiWarning}
+              </div>
+            ) : null}
+
+            {loading ? (
+              <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Updating market data...
+              </div>
+            ) : (
+              <>
+                <div className="lg:hidden">
+                  {rows.length === 0 ? (
+                    <div className="p-8 text-center text-sm text-muted-foreground">
+                      No products found matching your filters.
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {rows.map((row) => (
+                        <div key={row.productId} className="p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="space-y-1">
+                              <div className="font-semibold">{row.sku}</div>
+                              <div className="line-clamp-2 text-xs text-muted-foreground">{row.title}</div>
+                            </div>
+                            <StatusBadge status={row.buyboxStatus} />
+                          </div>
+                          <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <div className="text-xs text-muted-foreground">Our Price</div>
+                              <div className="font-medium">{formatSar(row.ourPrice)}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-muted-foreground">BuyBox</div>
+                              <div className="font-medium">{formatSar(row.competitorMinPrice)}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-muted-foreground">Margin</div>
+                              <div className={cn("font-medium", row.marginPct && row.marginPct <= 5 ? "text-amber-500" : "text-emerald-500")}>
+                                {formatSar(row.marginSar)}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-muted-foreground">Suggested</div>
+                              <div className="font-medium text-primary">{formatSar(row.suggestedPrice)}</div>
+                            </div>
+                          </div>
+                          <div className="mt-4">
+                            {renderRowActions(row, true)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="hidden lg:block">
+                  <DataTable
+                    columns={columns}
+                    data={rows}
+                    getRowId={(row) => row.productId}
+                    emptyText="No products found matching your filters."
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -579,7 +571,7 @@ export function DashboardClient() {
         title={modalTitle}
         description={
           selectedRow
-            ? `SKU ${selectedRow.sku} | Break-even: ${formatSar(selectedRow.breakEvenPrice)}`
+            ? `SKU ${selectedRow.sku} • Break-even: ${formatSar(selectedRow.breakEvenPrice)}`
             : undefined
         }
         onClose={() => {
@@ -611,10 +603,10 @@ export function DashboardClient() {
           </Button>
         }
       >
-        <div className="space-y-3">
+        <div className="space-y-4 pt-4">
           {pendingMethod === "CUSTOM" ? (
-            <div>
-              <Label htmlFor="custom-price">Price (SAR)</Label>
+            <div className="space-y-2">
+              <Label htmlFor="custom-price">New Price (SAR)</Label>
               <Input
                 id="custom-price"
                 type="number"
@@ -622,19 +614,27 @@ export function DashboardClient() {
                 min="0"
                 value={customPrice}
                 onChange={(event) => setCustomPrice(event.target.value)}
+                className="text-lg"
               />
             </div>
           ) : (
-            <p className="text-sm">Suggested price will be applied for this SKU.</p>
+            <div className="rounded-lg bg-primary/10 p-4 text-sm text-primary">
+              Suggested price will be applied for this SKU.
+            </div>
           )}
 
           {lossGuardInfo?.requiresConfirm ? (
-            <div className="rounded-md border border-amber-400 bg-amber-50 p-3 text-sm">
-              <p>
-                This price may cause loss. Break-even: {formatSar(lossGuardInfo.breakEvenPrice)} | Projected
-                profit: {formatSar(lossGuardInfo.projectedProfit)}
+            <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm">
+              <div className="flex items-center gap-2 font-semibold text-destructive">
+                <TrendingDown className="h-4 w-4" />
+                Potential Loss Warning
+              </div>
+              <p className="mt-1 text-muted-foreground">
+                This price is below break-even.
+                <br />
+                Break-even: {formatSar(lossGuardInfo.breakEvenPrice)} | Projected: {formatSar(lossGuardInfo.projectedProfit)}
               </p>
-              <div className="mt-2">
+              <div className="mt-4">
                 <Checkbox
                   checked={confirmLoss}
                   onChange={(event) => setConfirmLoss(event.target.checked)}
