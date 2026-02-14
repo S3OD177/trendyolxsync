@@ -11,7 +11,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 let lastRequestAt = 0;
 
-class TrendyolClient {
+export class TrendyolClient {
   private sellerId: string;
   private baseUrl: string;
   private apiKey: string;
