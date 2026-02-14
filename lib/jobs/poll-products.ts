@@ -61,9 +61,16 @@ function inferBuyBoxStatus(
   ourPrice: number | null,
   competitorMinPrice: number | null,
   buyboxSellerId: string | null,
-  sellerId: string | undefined
+  sellerId: string | undefined,
+  competitorCount: number | null
 ) {
   if (buyboxSellerId && sellerId && buyboxSellerId === sellerId) {
+    return "WIN" as const;
+  }
+
+  // If we have a price, but no competitors found (count === 0), it implies we are the only seller.
+  // We treat this as a WIN because we own the BuyBox (or the only listing).
+  if (ourPrice !== null && competitorCount === 0) {
     return "WIN" as const;
   }
 
@@ -97,18 +104,18 @@ export async function refreshSnapshotForProduct(
   const [priceStock, competitor] = await Promise.all([
     catalogItem
       ? Promise.resolve({
-          ourPrice: catalogItem.ourPrice ?? null,
-          stock: catalogItem.stock ?? null,
-          raw: {
-            source: "catalog_cache",
-            item: catalogItem.raw ?? catalogItem
-          }
-        })
+        ourPrice: catalogItem.ourPrice ?? null,
+        stock: catalogItem.stock ?? null,
+        raw: {
+          source: "catalog_cache",
+          item: catalogItem.raw ?? catalogItem
+        }
+      })
       : trendyolClient.fetchPriceAndStock({
-          sku: product.sku,
-          barcode: product.barcode ?? undefined,
-          productId: product.trendyolProductId ?? undefined
-        }),
+        sku: product.sku,
+        barcode: product.barcode ?? undefined,
+        productId: product.trendyolProductId ?? undefined
+      }),
     trendyolClient.fetchCompetitorPrices({
       sku: product.sku,
       barcode: product.barcode ?? undefined,
@@ -120,7 +127,8 @@ export async function refreshSnapshotForProduct(
     priceStock.ourPrice,
     competitor.competitorMinPrice,
     competitor.buyboxSellerId,
-    trendyolClient.getSellerId()
+    trendyolClient.getSellerId(),
+    competitor.competitorCount
   );
 
   return prisma.priceSnapshot.create({

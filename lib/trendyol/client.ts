@@ -541,11 +541,14 @@ export class TrendyolClient {
         ) ?? entries[0];
 
       if (!entry) {
+        // If we got a successful response (raw) but no entry for this specific barcode,
+        // it means there are no competitors or buybox data for this item.
+        // We treat this as "0 competitors".
         return {
           competitorMinPrice: null,
-          competitorCount: null,
+          competitorCount: 0,
           buyboxSellerId: null,
-          buyboxStatus: "UNKNOWN",
+          buyboxStatus: "UNKNOWN", // Will be refined in poll-products.ts
           raw: { note: "Buybox lookup returned no entries", response: raw }
         };
       }

@@ -1,0 +1,46 @@
+import os
+import requests
+import base64
+from dotenv import load_dotenv
+
+def main():
+    load_dotenv()
+    
+    seller_id = os.getenv("TRENDYOL_SELLER_ID")
+    api_key = os.getenv("TRENDYOL_API_KEY")
+    api_secret = os.getenv("TRENDYOL_API_SECRET")
+    base_url = os.getenv("TRENDYOL_BASE_URL", "https://apigw.trendyol.com").strip()
+    
+    if not all([seller_id, api_key, api_secret]):
+        print("Missing env vars")
+        return
+
+    api_token = base64.b64encode(f"{api_key}:{api_secret}".encode("utf-8")).decode("utf-8")
+    
+    # 1. Private Brands (Seller's brands)
+    url_brands = f"{base_url}/integration/product/brands"
+    
+    headers = {
+        "Authorization": f"Basic {api_token}",
+        "User-Agent": f"{seller_id} - SelfIntegration",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+    
+    # Try fetching generic brands (usually public, but let's see if auth works)
+    print(f"Testing Brands URL: {url_brands}")
+    try:
+        response = requests.get(url_brands, headers=headers, params={"page": 0, "size": 10}, timeout=30)
+        print(f"Response Code: {response.status_code}")
+        print(f"Response: {response.text[:200]}")
+    except Exception as e:
+        print(f"Error: {e}")
+
+    print("-" * 20)
+    
+    # 2. Check a known product url logic from documentation if available
+    # Some docs mention /integration/product/sellers/{sellerId}/products is the right way.
+    # We already tested that.
+
+if __name__ == "__main__":
+    main()
