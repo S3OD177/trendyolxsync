@@ -7,6 +7,7 @@ import { getEffectiveSettingsForProduct, getOrCreateGlobalSettings } from "@/lib
 import { suggestedPrice } from "@/lib/pricing/suggested-price";
 import { trendyolClient } from "@/lib/trendyol/client";
 import { syncCatalogFromTrendyol } from "@/lib/trendyol/sync-catalog";
+import type { TrendyolProductItem } from "@/lib/trendyol/types";
 
 export interface PollRunSummary {
   ok: boolean;
@@ -17,6 +18,7 @@ export interface PollRunSummary {
   catalogSynced: number;
   catalogPagesFetched: number;
   catalogSyncError?: string;
+  errors?: Array<{ sku: string; message: string }>;
   message?: string;
 }
 
@@ -72,13 +74,41 @@ function inferBuyBoxStatus(
   return ourPrice <= competitorMinPrice ? ("WIN" as const) : ("LOSE" as const);
 }
 
-export async function refreshSnapshotForProduct(product: Product) {
+function buildCatalogLookup(items: TrendyolProductItem[]) {
+  const map = new Map<string, TrendyolProductItem>();
+
+  for (const item of items) {
+    map.set(item.sku, item);
+    if (item.barcode) {
+      map.set(item.barcode, item);
+    }
+    if (item.productId) {
+      map.set(item.productId, item);
+    }
+  }
+
+  return map;
+}
+
+export async function refreshSnapshotForProduct(
+  product: Product,
+  catalogItem?: TrendyolProductItem
+) {
   const [priceStock, competitor] = await Promise.all([
-    trendyolClient.fetchPriceAndStock({
-      sku: product.sku,
-      barcode: product.barcode ?? undefined,
-      productId: product.trendyolProductId ?? undefined
-    }),
+    catalogItem
+      ? Promise.resolve({
+          ourPrice: catalogItem.ourPrice ?? null,
+          stock: catalogItem.stock ?? null,
+          raw: {
+            source: "catalog_cache",
+            item: catalogItem.raw ?? catalogItem
+          }
+        })
+      : trendyolClient.fetchPriceAndStock({
+          sku: product.sku,
+          barcode: product.barcode ?? undefined,
+          productId: product.trendyolProductId ?? undefined
+        }),
     trendyolClient.fetchCompetitorPrices({
       sku: product.sku,
       barcode: product.barcode ?? undefined,
@@ -130,6 +160,7 @@ export async function runPoll(): Promise<PollRunSummary> {
   let catalogSynced = 0;
   let catalogPagesFetched = 0;
   let catalogSyncError: string | undefined;
+  let catalogLookup = new Map<string, TrendyolProductItem>();
 
   if (env.AUTO_SYNC_CATALOG) {
     try {
@@ -138,10 +169,14 @@ export async function runPoll(): Promise<PollRunSummary> {
         pageSize: env.AUTO_SYNC_PAGE_SIZE,
         hydratePrices: false,
         hydrateLimit: 0,
-        createInitialSnapshots: false
+        createInitialSnapshots: false,
+        includeItems: true
       });
       catalogSynced = syncSummary.totalSynced;
       catalogPagesFetched = syncSummary.pagesFetched;
+      if (syncSummary.items?.length) {
+        catalogLookup = buildCatalogLookup(syncSummary.items);
+      }
     } catch (error) {
       catalogSyncError =
         error instanceof Error ? error.message : "Automatic catalog sync failed";
@@ -168,6 +203,7 @@ export async function runPoll(): Promise<PollRunSummary> {
 
   let alertsCreated = 0;
   let skipped = 0;
+  const errors: Array<{ sku: string; message: string }> = [];
 
   for (const product of products) {
     try {
@@ -180,7 +216,12 @@ export async function runPoll(): Promise<PollRunSummary> {
         getEffectiveSettingsForProduct(product.id)
       ]);
 
-      const snapshot = await refreshSnapshotForProduct(product);
+      const catalogMatch =
+        catalogLookup.get(product.sku) ??
+        (product.barcode ? catalogLookup.get(product.barcode) : undefined) ??
+        (product.trendyolProductId ? catalogLookup.get(product.trendyolProductId) : undefined);
+
+      const snapshot = await refreshSnapshotForProduct(product, catalogMatch);
 
       const ourPrice = snapshot.ourPrice !== null ? Number(snapshot.ourPrice) : null;
       const competitorMin =
@@ -227,8 +268,14 @@ export async function runPoll(): Promise<PollRunSummary> {
         });
         alertsCreated += 1;
       }
-    } catch {
+    } catch (error) {
       skipped += 1;
+      if (errors.length < 20) {
+        errors.push({
+          sku: product.sku,
+          message: error instanceof Error ? error.message : "Unknown poll error"
+        });
+      }
     }
   }
 
@@ -240,6 +287,7 @@ export async function runPoll(): Promise<PollRunSummary> {
     catalogSynced,
     catalogPagesFetched,
     catalogSyncError,
+    errors: errors.length ? errors : undefined,
     durationMs: Date.now() - start
   };
 }

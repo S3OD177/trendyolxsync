@@ -71,6 +71,115 @@ export class TrendyolClient {
     return Number.isFinite(number) ? number : null;
   }
 
+  private readPath(source: unknown, path: string): unknown {
+    return path.split(".").reduce<unknown>((current, key) => {
+      if (current === null || current === undefined) {
+        return undefined;
+      }
+
+      if (Array.isArray(current)) {
+        const index = Number(key);
+        if (!Number.isInteger(index)) {
+          return undefined;
+        }
+        return current[index];
+      }
+
+      if (typeof current === "object") {
+        return (current as Record<string, unknown>)[key];
+      }
+
+      return undefined;
+    }, source);
+  }
+
+  private numberFromUnknown(value: unknown, depth = 0): number | null {
+    if (depth > 3 || value === null || value === undefined) {
+      return null;
+    }
+
+    const direct = this.toNumber(value);
+    if (direct !== null) {
+      return direct;
+    }
+
+    if (typeof value !== "object") {
+      return null;
+    }
+
+    const objectValue = value as Record<string, unknown>;
+    const priorityKeys = [
+      "value",
+      "amount",
+      "price",
+      "salePrice",
+      "listPrice",
+      "discountedPrice",
+      "sellingPrice",
+      "buyboxPrice",
+      "net",
+      "gross"
+    ];
+
+    for (const key of priorityKeys) {
+      if (!(key in objectValue)) {
+        continue;
+      }
+      const nested = this.numberFromUnknown(objectValue[key], depth + 1);
+      if (nested !== null) {
+        return nested;
+      }
+    }
+
+    return null;
+  }
+
+  private pickNumber(source: unknown, paths: string[]): number | null {
+    for (const path of paths) {
+      const candidate = this.numberFromUnknown(this.readPath(source, path));
+      if (candidate !== null) {
+        return candidate;
+      }
+    }
+
+    return null;
+  }
+
+  private extractPrice(source: unknown): number | null {
+    return this.pickNumber(source, [
+      "salePrice",
+      "listPrice",
+      "discountedPrice",
+      "price",
+      "sellingPrice",
+      "buyboxPrice",
+      "lowestPrice",
+      "minimumPrice",
+      "price.salePrice",
+      "price.listPrice",
+      "price.discountedPrice",
+      "price.sellingPrice",
+      "prices.salePrice",
+      "prices.listPrice",
+      "priceInfo.salePrice",
+      "priceInfo.listPrice",
+      "priceInfo.sellingPrice"
+    ]);
+  }
+
+  private extractStock(source: unknown): number | null {
+    return this.pickNumber(source, [
+      "quantity",
+      "stock",
+      "stockQuantity",
+      "availableStock",
+      "availableQuantity",
+      "inventory",
+      "stockCount",
+      "onHandQuantity"
+    ]);
+  }
+
   private async request<T>(path: string, init?: RequestInit, retries = 3): Promise<T> {
     if (!this.isConfigured()) {
       throw new Error("Trendyol credentials are not configured");
@@ -201,15 +310,8 @@ export class TrendyolClient {
             ? String(item.category)
             : null,
       active: item?.archived === true ? false : true,
-      ourPrice:
-        this.toNumber(item?.salePrice) ??
-        this.toNumber(item?.price) ??
-        this.toNumber(item?.listPrice) ??
-        this.toNumber(item?.discountedPrice),
-      stock:
-        this.toNumber(item?.quantity) ??
-        this.toNumber(item?.stock) ??
-        this.toNumber(item?.stockQuantity),
+      ourPrice: this.extractPrice(item),
+      stock: this.extractStock(item),
       raw: item
     };
   }
@@ -268,6 +370,30 @@ export class TrendyolClient {
     };
   }
 
+  async fetchAllProducts(maxPages = 10, size = 100): Promise<TrendyolProductItem[]> {
+    const seen = new Map<string, TrendyolProductItem>();
+    let page = 0;
+
+    while (page < maxPages) {
+      const result = await this.fetchProducts(page, size);
+      if (!result.items.length) {
+        break;
+      }
+
+      for (const item of result.items) {
+        seen.set(item.sku, item);
+      }
+
+      page += 1;
+
+      if (result.totalPages !== undefined && page >= result.totalPages) {
+        break;
+      }
+    }
+
+    return Array.from(seen.values());
+  }
+
   async fetchPriceAndStock(productRef: { sku?: string; barcode?: string; productId?: string }): Promise<TrendyolPriceStock> {
     const fallbackRef = productRef.barcode || productRef.sku || productRef.productId;
     const byBarcode = productRef.barcode ? `&barcode=${encodeURIComponent(productRef.barcode)}` : "";
@@ -302,16 +428,8 @@ export class TrendyolClient {
       );
     }) ?? list[0];
 
-    const ourPrice =
-      this.toNumber(item?.salePrice) ??
-      this.toNumber(item?.price) ??
-      this.toNumber(item?.listPrice) ??
-      this.toNumber(item?.discountedPrice);
-
-    const stock =
-      this.toNumber(item?.quantity) ??
-      this.toNumber(item?.stock) ??
-      this.toNumber(item?.stockQuantity);
+    const ourPrice = this.extractPrice(item);
+    const stock = this.extractStock(item);
 
     return {
       ourPrice,
@@ -361,16 +479,18 @@ export class TrendyolClient {
           : [];
 
       const minOfferPrice = offerRows
-        .map((offer) =>
-          this.toNumber(offer?.price ?? offer?.salePrice ?? offer?.buyboxPrice ?? offer?.amount)
-        )
+        .map((offer) => this.extractPrice(offer))
         .filter((value): value is number => value !== null)
         .reduce<number | null>((min, price) => (min === null || price < min ? price : min), null);
 
-      const competitorMinPrice =
-        this.toNumber(
-          entry?.buyboxPrice ?? entry?.competitorMinPrice ?? entry?.minimumPrice ?? entry?.price
-        ) ?? minOfferPrice;
+      const competitorMinPrice = this.pickNumber(entry, [
+        "buyboxPrice",
+        "competitorMinPrice",
+        "minimumPrice",
+        "lowestPrice",
+        "price",
+        "winnerPrice"
+      ]) ?? minOfferPrice;
 
       const buyboxSellerId =
         entry?.buyboxSellerId?.toString?.() ??
@@ -379,9 +499,7 @@ export class TrendyolClient {
         entry?.buyboxSeller?.sellerId?.toString?.() ??
         null;
 
-      const competitorCount =
-        this.toNumber(entry?.competitorCount ?? entry?.sellerCount) ??
-        (offerRows.length ? offerRows.length : null);
+      const competitorCount = this.pickNumber(entry, ["competitorCount", "sellerCount"]) ?? (offerRows.length ? offerRows.length : null);
 
       const buyboxStatus = buyboxSellerId
         ? String(buyboxSellerId) === String(this.sellerId)

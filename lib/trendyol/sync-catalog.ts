@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { trendyolClient } from "@/lib/trendyol/client";
+import type { TrendyolProductItem } from "@/lib/trendyol/types";
 
 export interface CatalogSyncOptions {
   maxPages?: number;
@@ -8,6 +9,7 @@ export interface CatalogSyncOptions {
   hydratePrices?: boolean;
   hydrateLimit?: number;
   createInitialSnapshots?: boolean;
+  includeItems?: boolean;
 }
 
 export interface CatalogSyncSummary {
@@ -18,6 +20,7 @@ export interface CatalogSyncSummary {
   hydrationErrors: number;
   dbTotalProducts: number;
   dbActiveProducts: number;
+  items?: TrendyolProductItem[];
 }
 
 export async function syncCatalogFromTrendyol(
@@ -32,6 +35,8 @@ export async function syncCatalogFromTrendyol(
   const hydratePrices = options.hydratePrices ?? true;
   const hydrateLimit = options.hydrateLimit ?? 150;
   const createInitialSnapshots = options.createInitialSnapshots ?? true;
+  const includeItems = options.includeItems ?? false;
+  const itemsBySku = includeItems ? new Map<string, TrendyolProductItem>() : null;
 
   let page = 0;
   let totalSynced = 0;
@@ -49,6 +54,10 @@ export async function syncCatalogFromTrendyol(
     }
 
     for (const item of result.items) {
+      if (itemsBySku) {
+        itemsBySku.set(item.sku, item);
+      }
+
       const savedProduct = await prisma.product.upsert({
         where: { sku: item.sku },
         update: {
@@ -145,6 +154,7 @@ export async function syncCatalogFromTrendyol(
     hydratedSnapshots,
     hydrationErrors,
     dbTotalProducts,
-    dbActiveProducts
+    dbActiveProducts,
+    items: itemsBySku ? Array.from(itemsBySku.values()) : undefined
   };
 }

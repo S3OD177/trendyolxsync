@@ -47,6 +47,16 @@ interface DashboardResponse {
   rows?: DashboardRow[];
 }
 
+interface PollRunResponse {
+  ok: boolean;
+  processed?: number;
+  skipped?: number;
+  alertsCreated?: number;
+  errors?: Array<{ sku: string; message: string }>;
+  message?: string;
+  error?: string;
+}
+
 async function readJsonResponse(response: Response): Promise<Record<string, any>> {
   const raw = await response.text();
   if (!raw.trim()) {
@@ -64,6 +74,7 @@ export function DashboardClient() {
   const { toast } = useToast();
   const [rows, setRows] = useState<DashboardRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [polling, setPolling] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [apiWarning, setApiWarning] = useState<string | null>(null);
   const warningToastRef = useRef<string | null>(null);
@@ -79,6 +90,7 @@ export function DashboardClient() {
   const [pendingMethod, setPendingMethod] = useState<"SUGGESTED" | "CUSTOM">("CUSTOM");
   const [confirmLoss, setConfirmLoss] = useState(false);
   const [lossGuardInfo, setLossGuardInfo] = useState<LossGuardInfo | null>(null);
+  const autoPollAttemptRef = useRef(false);
 
   const loadRows = useCallback(async () => {
     setLoading(true);
@@ -123,6 +135,47 @@ export function DashboardClient() {
     }
   }, [search, lostOnly, lowMarginRisk, sort, toast]);
 
+  const triggerPoll = useCallback(
+    async (manual = false) => {
+      setPolling(true);
+      try {
+        const response = await fetch("/api/poll/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        });
+        const data = (await readJsonResponse(response)) as PollRunResponse;
+
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || data.message || "Poll failed");
+        }
+
+        const firstError = data.errors?.[0];
+        if (firstError) {
+          toast({
+            title: "Poll finished with errors",
+            description: `${firstError.sku}: ${firstError.message}`,
+            variant: "destructive"
+          });
+        } else if (manual) {
+          toast({
+            title: "Poll completed",
+            description: `Processed ${data.processed ?? 0} products, created ${data.alertsCreated ?? 0} alerts.`
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Poll failed",
+          description: error instanceof Error ? error.message : "Unknown error",
+          variant: "destructive"
+        });
+      } finally {
+        setPolling(false);
+        await loadRows();
+      }
+    },
+    [loadRows, toast]
+  );
+
   useEffect(() => {
     loadRows();
   }, [loadRows]);
@@ -131,6 +184,18 @@ export function DashboardClient() {
     const interval = window.setInterval(loadRows, 45000);
     return () => window.clearInterval(interval);
   }, [loadRows]);
+
+  useEffect(() => {
+    if (loading || polling || autoPollAttemptRef.current || rows.length === 0) {
+      return;
+    }
+
+    const hasSnapshots = rows.some((row) => row.lastCheckedAt !== null);
+    if (!hasSnapshots) {
+      autoPollAttemptRef.current = true;
+      void triggerPoll(false);
+    }
+  }, [rows, loading, polling, triggerPoll]);
 
   const summary = useMemo(() => {
     const total = rows.length;
@@ -387,10 +452,22 @@ export function DashboardClient() {
               <p className="mt-1 text-xs text-slate-400">
                 Catalog sync runs automatically in every 5-minute cron poll.
               </p>
+              <p className="mt-1 text-xs text-slate-400">
+                Refresh runs an immediate protected poll for live prices.
+              </p>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={loadRows} className="border-slate-300 bg-white">
-                <RefreshCw className="mr-2 h-4 w-4" />
+              <Button
+                variant="outline"
+                onClick={() => triggerPoll(true)}
+                disabled={polling}
+                className="border-slate-300 bg-white"
+              >
+                {polling ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
                 Refresh
               </Button>
             </div>
