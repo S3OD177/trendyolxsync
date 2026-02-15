@@ -4,7 +4,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
-import { Bell, LayoutDashboard, Settings, Truck } from "lucide-react";
+import { Bell, LayoutDashboard, Settings, Truck, FlaskConical } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -13,7 +13,8 @@ const navItems = [
   { href: "/dashboard" as Route, label: "Dashboard", icon: LayoutDashboard },
   { href: "/shipments" as Route, label: "Shipments", icon: Truck },
   { href: "/alerts" as Route, label: "Alerts", icon: Bell },
-  { href: "/settings" as Route, label: "Settings", icon: Settings }
+  { href: "/settings" as Route, label: "Settings", icon: Settings },
+  { href: "/api-test" as Route, label: "API Test", icon: FlaskConical }
 ] satisfies ReadonlyArray<{ href: Route; label: string; icon: ComponentType<{ className?: string }> }>;
 
 export function ProtectedNav({ mobile = false }: { mobile?: boolean }) {
