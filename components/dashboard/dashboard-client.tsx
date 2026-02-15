@@ -3,7 +3,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Boxes, Loader2, RefreshCw, ShieldAlert, TrendingDown, TriangleAlert, Activity, ArrowUpRight } from "lucide-react";
+import { Boxes, ExternalLink, Loader2, RefreshCw, ShieldAlert, TrendingDown, TriangleAlert, Activity, ArrowUpRight } from "lucide-react";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,8 @@ interface DashboardRow {
   barcode: string | null;
   title: string;
   listingId: string | null;
+  imageUrl: string | null;
+  productUrl: string | null;
   ourPrice: number | null;
   competitorMinPrice: number | null;
   deltaSar: number | null;
@@ -320,9 +322,20 @@ export function DashboardClient() {
       key: "sku",
       header: "Product",
       cell: (row) => (
-        <div className="flex flex-col">
-          <span className="font-semibold text-foreground">{row.sku}</span>
-          <span className="text-xs text-muted-foreground">{row.barcode || "-"}</span>
+        <div className="flex items-center gap-3">
+          {row.imageUrl ? (
+            <img
+              src={row.imageUrl}
+              alt={row.title}
+              className="h-10 w-10 rounded-md object-cover bg-secondary flex-shrink-0"
+            />
+          ) : (
+            <div className="h-10 w-10 rounded-md bg-secondary flex-shrink-0" />
+          )}
+          <div className="flex flex-col min-w-0">
+            <span className="font-semibold text-foreground">{row.sku}</span>
+            <span className="text-xs text-muted-foreground">{row.barcode || "-"}</span>
+          </div>
         </div>
       )
     },
@@ -331,7 +344,12 @@ export function DashboardClient() {
       header: "Title",
       cell: (row) => (
         <div className="max-w-[320px] text-sm font-medium text-muted-foreground" title={row.title}>
-          {row.title}
+          <span>{row.title}</span>
+          {row.productUrl ? (
+            <a href={row.productUrl} target="_blank" rel="noopener noreferrer" className="ml-1.5 inline-flex text-primary hover:text-primary/80">
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          ) : null}
         </div>
       )
     },
@@ -534,9 +552,27 @@ export function DashboardClient() {
                       {rows.map((row) => (
                         <div key={row.productId} className="p-4">
                           <div className="flex items-start justify-between gap-3">
-                            <div className="space-y-1">
-                              <div className="font-semibold">{row.sku}</div>
-                              <div className="line-clamp-2 text-xs text-muted-foreground">{row.title}</div>
+                            <div className="flex items-start gap-3">
+                              {row.imageUrl ? (
+                                <img
+                                  src={row.imageUrl}
+                                  alt={row.title}
+                                  className="h-10 w-10 rounded-md object-cover bg-secondary flex-shrink-0"
+                                />
+                              ) : (
+                                <div className="h-10 w-10 rounded-md bg-secondary flex-shrink-0" />
+                              )}
+                              <div className="space-y-1 min-w-0">
+                                <div className="font-semibold">{row.sku}</div>
+                                <div className="line-clamp-2 text-xs text-muted-foreground">
+                                  {row.title}
+                                  {row.productUrl ? (
+                                    <a href={row.productUrl} target="_blank" rel="noopener noreferrer" className="ml-1.5 inline-flex text-primary hover:text-primary/80">
+                                      <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                  ) : null}
+                                </div>
+                              </div>
                             </div>
                             <StatusBadge status={row.buyboxStatus} />
                           </div>

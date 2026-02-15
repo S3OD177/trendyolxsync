@@ -10,6 +10,8 @@ export interface DashboardRowDTO {
   barcode: string | null;
   title: string;
   listingId: string | null;
+  imageUrl: string | null;
+  productUrl: string | null;
   ourPrice: number | null;
   competitorMinPrice: number | null;
   deltaSar: number | null;
@@ -93,6 +95,8 @@ export async function buildDashboardRows() {
       barcode: product.barcode,
       title: product.title,
       listingId: product.trendyolProductId,
+      imageUrl: product.imageUrl,
+      productUrl: product.productUrl,
       ourPrice,
       competitorMinPrice,
       deltaSar,

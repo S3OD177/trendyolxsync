@@ -387,6 +387,17 @@ export class TrendyolClient {
           : item?.category
             ? String(item.category)
             : null,
+      imageUrl:
+        item?.images?.[0]?.url ??
+        item?.imageUrl ??
+        item?.image ??
+        item?.productImage ??
+        null,
+      productUrl:
+        item?.productUrl ??
+        item?.productPageUrl ??
+        (item?.contentId ? `https://www.trendyol.com/p/p-${item.contentId}` : null) ??
+        (item?.productMainId ? `https://www.trendyol.com/p/p-${item.productMainId}` : null),
       active: item?.archived === true ? false : true,
       ourPrice: this.extractPrice(item),
       stock: this.extractStock(item),

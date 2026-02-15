@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ExternalLink } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,6 +20,8 @@ interface ProductDetailsPayload {
     title: string;
     barcode: string | null;
     trendyolProductId: string | null;
+    imageUrl: string | null;
+    productUrl: string | null;
     snapshots: Array<{
       id: string;
       checkedAt: string;
@@ -239,8 +241,30 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
           <ArrowLeft className="h-4 w-4" />
           Back to Dashboard
         </Link>
-        <h1 className="text-2xl font-semibold text-foreground">{payload.product.title}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">SKU: {payload.product.sku}</p>
+        <div className="flex items-start gap-4">
+          {payload.product.imageUrl ? (
+            <img
+              src={payload.product.imageUrl}
+              alt={payload.product.title}
+              className="h-20 w-20 rounded-lg object-cover bg-secondary flex-shrink-0"
+            />
+          ) : null}
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">{payload.product.title}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">SKU: {payload.product.sku}</p>
+            {payload.product.productUrl ? (
+              <a
+                href={payload.product.productUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1.5 inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors"
+              >
+                View on Trendyol
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">

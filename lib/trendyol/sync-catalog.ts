@@ -65,6 +65,8 @@ export async function syncCatalogFromTrendyol(
           title: item.title,
           trendyolProductId: item.productId,
           category: item.category,
+          imageUrl: item.imageUrl,
+          productUrl: item.productUrl,
           active: item.active,
           currency: "SAR"
         },
@@ -74,6 +76,8 @@ export async function syncCatalogFromTrendyol(
           title: item.title,
           trendyolProductId: item.productId,
           category: item.category,
+          imageUrl: item.imageUrl,
+          productUrl: item.productUrl,
           active: item.active,
           currency: "SAR",
           settings: {

@@ -64,6 +64,8 @@ model Product {
   title             String
   trendyolProductId String?
   category          String?
+  imageUrl          String?
+  productUrl        String?
   active            Boolean          @default(true)
   currency          String           @default("SAR")
   createdAt         DateTime         @default(now())

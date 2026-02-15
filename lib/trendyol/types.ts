@@ -4,6 +4,8 @@ export interface TrendyolProductItem {
   title: string;
   productId?: string | null;
   category?: string | null;
+  imageUrl?: string | null;
+  productUrl?: string | null;
   active: boolean;
   ourPrice?: number | null;
   stock?: number | null;
