@@ -95,13 +95,15 @@ export function DashboardClient() {
   const [lossGuardInfo, setLossGuardInfo] = useState<LossGuardInfo | null>(null);
   const autoPollAttemptRef = useRef(false);
 
+  const hasLoadedRef = useRef(false);
+
   const loadRows = useCallback(async () => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
-    // Only show full loading state if we don't have data yet
-    if (rows.length === 0) {
+    // Only set main loading state on very first load to avoid flicker
+    if (!hasLoadedRef.current) {
       setLoading(true);
     }
 
@@ -124,6 +126,7 @@ export function DashboardClient() {
       }
 
       setRows(Array.isArray(data.rows) ? data.rows : []);
+      hasLoadedRef.current = true; // Mark as loaded so we don't show full loader again
 
       const warning = typeof data.warning === "string" ? data.warning : null;
       setApiWarning(warning);
@@ -150,7 +153,7 @@ export function DashboardClient() {
         setLoading(false);
       }
     }
-  }, [search, lostOnly, lowMarginRisk, sort, toast, rows.length]);
+  }, [search, lostOnly, lowMarginRisk, sort, toast]);
 
   const triggerPoll = useCallback(
     async (manual = false) => {

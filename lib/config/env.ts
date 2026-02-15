@@ -44,7 +44,7 @@ const envSchema = z.object({
     .optional()
     .transform((value) => (value ? Number(value) : 15)),
   AUTO_SYNC_CATALOG: booleanLike.default(true),
-  AUTO_SYNC_MAX_PAGES: z.coerce.number().int().min(1).max(50).default(5),
+  AUTO_SYNC_MAX_PAGES: z.coerce.number().int().min(1).max(500).default(50),
   AUTO_SYNC_PAGE_SIZE: z.coerce.number().int().min(1).max(200).default(50)
 });
 

@@ -99,7 +99,7 @@ export default function ShipmentsClient() {
             fetchShipments(search, isInitial);
         }, 300);
         return () => clearTimeout(timer);
-    }, [search, fetchShipments]);
+    }, [search, fetchShipments, data.length, loading]);
 
     // Live Countdown Timer
     useEffect(() => {
