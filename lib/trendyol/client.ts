@@ -308,13 +308,14 @@ export class TrendyolClient {
       return { raw: { note: "No barcodes provided" }, entries: [] as any[] };
     }
 
+    const numericSellerId = Number(this.sellerId);
     const raw = await this.request<any>(
       `/integration/product/sellers/${this.sellerId}/products/buybox-information`,
       {
         method: "POST",
         body: JSON.stringify({
           barcodes: unique,
-          supplierId: this.sellerId
+          supplierId: Number.isFinite(numericSellerId) ? numericSellerId : this.sellerId
         })
       }
     );
@@ -535,20 +536,23 @@ export class TrendyolClient {
     try {
       const { raw, entries } = await this.fetchBuyboxInformation([reference]);
 
+      if (!entries.length) {
+        console.warn(
+          `[buybox] No entries returned for barcode=${reference}, raw keys=${raw ? Object.keys(raw).join(",") : "null"}`
+        );
+      }
+
       const entry =
         entries.find((item: any) =>
           [String(item?.barcode ?? ""), String(item?.stockCode ?? "")].includes(String(reference))
         ) ?? entries[0];
 
       if (!entry) {
-        // If we got a successful response (raw) but no entry for this specific barcode,
-        // it means there are no competitors or buybox data for this item.
-        // We treat this as "0 competitors".
         return {
           competitorMinPrice: null,
           competitorCount: 0,
           buyboxSellerId: null,
-          buyboxStatus: "UNKNOWN", // Will be refined in poll-products.ts
+          buyboxStatus: "UNKNOWN",
           raw: { note: "Buybox lookup returned no entries", response: raw }
         };
       }
@@ -567,6 +571,10 @@ export class TrendyolClient {
         }
       };
     } catch (error) {
+      console.error(
+        `[buybox] Failed to fetch buybox for barcode=${reference}:`,
+        error instanceof Error ? error.message : error
+      );
       return {
         competitorMinPrice: null,
         competitorCount: null,
