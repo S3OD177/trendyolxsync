@@ -44,6 +44,37 @@ export class TrendyolClient {
     return this.storeFrontCode ?? null;
   }
 
+  getBaseUrl() {
+    return this.baseUrl;
+  }
+
+  /** Expose a raw GET/POST for debugging any endpoint */
+  async testEndpoint(path: string, init?: RequestInit): Promise<{ status: number; body: unknown }> {
+    if (!this.isConfigured()) {
+      throw new Error("Trendyol credentials are not configured");
+    }
+
+    const url = `${this.baseUrl}${path}`;
+    const response = await fetch(url, {
+      ...init,
+      headers: {
+        ...this.defaultHeaders,
+        ...(init?.headers ?? {})
+      },
+      cache: "no-store"
+    });
+
+    let body: unknown;
+    const text = await response.text();
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = text.slice(0, 500);
+    }
+
+    return { status: response.status, body };
+  }
+
   private get authHeader() {
     const token =
       this.apiToken || Buffer.from(`${this.apiKey}:${this.apiSecret}`).toString("base64");
