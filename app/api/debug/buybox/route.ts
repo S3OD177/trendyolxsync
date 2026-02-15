@@ -8,7 +8,6 @@ export async function GET(request: NextRequest) {
   const barcode = request.nextUrl.searchParams.get("barcode");
 
   if (!barcode) {
-    // If no barcode provided, grab first product with a barcode from DB
     const product = await prisma.product.findFirst({
       where: { barcode: { not: null }, active: true },
       select: { sku: true, barcode: true, title: true, trendyolProductId: true }
@@ -28,13 +27,31 @@ export async function GET(request: NextRequest) {
     const sellerId = trendyolClient.getSellerId();
     const storeFrontCode = trendyolClient.getStoreFrontCode();
 
-    // Step 1: Raw buybox API call
+    // Step 1: Fetch raw product data from the approved products endpoint
+    // This shows us ALL fields Trendyol returns for this product
+    const productData = await trendyolClient.fetchPriceAndStock({
+      barcode,
+      sku: barcode
+    });
+
+    // Step 2: Raw buybox API call
     const buyboxResult = await trendyolClient.fetchBuyboxInformation([barcode]);
 
-    // Step 2: Full competitor price fetch (includes parsing)
+    // Step 3: Full competitor price fetch (includes parsing)
     const competitorResult = await trendyolClient.fetchCompetitorPrices({
       barcode,
       sku: barcode
+    });
+
+    // Step 4: Check latest snapshot from DB for this product
+    const dbProduct = await prisma.product.findFirst({
+      where: { barcode },
+      include: {
+        snapshots: {
+          orderBy: { checkedAt: "desc" },
+          take: 1
+        }
+      }
     });
 
     return NextResponse.json({
@@ -44,6 +61,7 @@ export async function GET(request: NextRequest) {
         storeFrontCode,
         isConfigured: trendyolClient.isConfigured()
       },
+      productRaw: productData.raw,
       buyboxRaw: buyboxResult.raw,
       buyboxEntries: buyboxResult.entries,
       buyboxEntriesCount: buyboxResult.entries.length,
@@ -53,7 +71,8 @@ export async function GET(request: NextRequest) {
         buyboxSellerId: competitorResult.buyboxSellerId,
         buyboxStatus: competitorResult.buyboxStatus,
         raw: competitorResult.raw
-      }
+      },
+      lastSnapshot: dbProduct?.snapshots?.[0] ?? null
     });
   } catch (error) {
     return NextResponse.json(
