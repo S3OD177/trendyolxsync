@@ -230,7 +230,7 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
     <div className="space-y-6">
       <Card className="surface-panel">
         <CardHeader>
-          <CardTitle className="text-lg text-slate-900">
+          <CardTitle className="text-lg text-foreground">
             {payload.product.sku} - {payload.product.title}
           </CardTitle>
         </CardHeader>
@@ -252,7 +252,7 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
 
       <Card className="surface-panel">
         <CardHeader>
-          <CardTitle className="text-lg text-slate-900">Price History</CardTitle>
+          <CardTitle className="text-lg text-foreground">Price History</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[320px] w-full">
@@ -278,7 +278,7 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="surface-panel">
           <CardHeader>
-            <CardTitle className="text-lg text-slate-900">Simulation (SAR)</CardTitle>
+            <CardTitle className="text-lg text-foreground">Simulation (SAR)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -322,7 +322,7 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
 
         <Card className="surface-panel">
           <CardHeader>
-            <CardTitle className="text-lg text-slate-900">Recent Alerts</CardTitle>
+            <CardTitle className="text-lg text-foreground">Recent Alerts</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -349,7 +349,7 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
 
       <Card className="surface-panel">
         <CardHeader>
-          <CardTitle className="text-lg text-slate-900">Cost & Fee Settings (Per SKU)</CardTitle>
+          <CardTitle className="text-lg text-foreground">Cost & Fee Settings (Per SKU)</CardTitle>
         </CardHeader>
         <CardContent>
           <form className="grid gap-4 md:grid-cols-3" onSubmit={saveSettings}>
