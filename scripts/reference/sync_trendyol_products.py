@@ -337,6 +337,10 @@ def fetch_buybox_info(
 def ensure_schema(conn: psycopg.Connection[Any]) -> None:
     with conn.cursor() as cur:
         cur.execute(CREATE_TABLE_SQL)
+        # Ensure new columns exist (idempotent migration)
+        cur.execute("ALTER TABLE trendyol_products ADD COLUMN IF NOT EXISTS buybox_price NUMERIC(18, 2);")
+        cur.execute("ALTER TABLE trendyol_products ADD COLUMN IF NOT EXISTS buybox_competitor_count INTEGER;")
+        cur.execute("ALTER TABLE trendyol_products ADD COLUMN IF NOT EXISTS buybox_status TEXT;")
 
 
 def product_code_from_item(item: dict[str, Any]) -> str | None:

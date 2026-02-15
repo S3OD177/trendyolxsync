@@ -15,84 +15,90 @@ import requests
 from dotenv import load_dotenv
 from psycopg.types.json import Json
 
+def ms_to_datetime(ms: int | None) -> datetime | None:
+    if ms is None:
+        return None
+    return datetime.fromtimestamp(ms / 1000.0, tz=timezone.utc)
 
+
+# Table managed by Prisma, so we don't strictly need CREATE TABLE if it exists.
+# But for reference or standalone use (schema matches Prisma):
 CREATE_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS trendyol_shipment_packages (
-    seller_id BIGINT NOT NULL,
-    package_number TEXT NOT NULL,
-    order_number TEXT,
-    shipment_package_status TEXT,
-    cargo_provider_name TEXT,
-    cargo_tracking_number TEXT,
-    cargo_tracking_link TEXT,
-    package_last_modified_date BIGINT,
-    shipment_package_creation_date BIGINT,
-    estimated_delivery_start_date BIGINT,
-    estimated_delivery_end_date BIGINT,
-    lines_count INTEGER,
-    raw JSONB NOT NULL,
-    synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (seller_id, package_number)
+CREATE TABLE IF NOT EXISTS "shipment_packages" (
+    "id" TEXT NOT NULL,
+    "sellerId" BIGINT NOT NULL,
+    "packageNumber" TEXT NOT NULL,
+    "orderNumber" TEXT,
+    "status" TEXT NOT NULL,
+    "cargoProvider" TEXT,
+    "trackingNumber" TEXT,
+    "trackingLink" TEXT,
+    "lastModifiedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3),
+    "estimatedDeliveryStart" TIMESTAMP(3),
+    "estimatedDeliveryEnd" TIMESTAMP(3),
+    "linesCount" INTEGER,
+    "rawPayload" JSONB NOT NULL,
+    "syncedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    CONSTRAINT "shipment_packages_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX IF NOT EXISTS idx_trendyol_shipments_status
-    ON trendyol_shipment_packages (shipment_package_status);
-
-CREATE INDEX IF NOT EXISTS idx_trendyol_shipments_modified_date
-    ON trendyol_shipment_packages (package_last_modified_date DESC);
-
-CREATE INDEX IF NOT EXISTS idx_trendyol_shipments_synced_at
-    ON trendyol_shipment_packages (synced_at DESC);
+-- Indexes are managed by Prisma generally, but for standalone:
+CREATE INDEX IF NOT EXISTS "idx_shipment_packages_status" ON "shipment_packages" ("status");
+CREATE UNIQUE INDEX IF NOT EXISTS "shipment_packages_sellerId_packageNumber_key" ON "shipment_packages" ("sellerId", "packageNumber");
 """
 
 
 UPSERT_SQL = """
-INSERT INTO trendyol_shipment_packages (
-    seller_id,
-    package_number,
-    order_number,
-    shipment_package_status,
-    cargo_provider_name,
-    cargo_tracking_number,
-    cargo_tracking_link,
-    package_last_modified_date,
-    shipment_package_creation_date,
-    estimated_delivery_start_date,
-    estimated_delivery_end_date,
-    lines_count,
-    raw,
-    synced_at
+INSERT INTO "shipment_packages" (
+    "id",
+    "sellerId",
+    "packageNumber",
+    "orderNumber",
+    "status",
+    "cargoProvider",
+    "trackingNumber",
+    "trackingLink",
+    "lastModifiedAt",
+    "createdAt",
+    "estimatedDeliveryStart",
+    "estimatedDeliveryEnd",
+    "linesCount",
+    "rawPayload",
+    "syncedAt"
 )
 VALUES (
-    %(seller_id)s,
-    %(package_number)s,
-    %(order_number)s,
-    %(shipment_package_status)s,
-    %(cargo_provider_name)s,
-    %(cargo_tracking_number)s,
-    %(cargo_tracking_link)s,
-    %(package_last_modified_date)s,
-    %(shipment_package_creation_date)s,
-    %(estimated_delivery_start_date)s,
-    %(estimated_delivery_end_date)s,
-    %(lines_count)s,
-    %(raw)s,
+    gen_random_uuid()::text, -- Generate ID if new
+    %(sellerId)s,
+    %(packageNumber)s,
+    %(orderNumber)s,
+    %(status)s,
+    %(cargoProvider)s,
+    %(trackingNumber)s,
+    %(trackingLink)s,
+    %(lastModifiedAt)s,
+    %(createdAt)s,
+    %(estimatedDeliveryStart)s,
+    %(estimatedDeliveryEnd)s,
+    %(linesCount)s,
+    %(rawPayload)s,
     NOW()
 )
-ON CONFLICT (seller_id, package_number)
+ON CONFLICT ("sellerId", "packageNumber")
 DO UPDATE SET
-    order_number = EXCLUDED.order_number,
-    shipment_package_status = EXCLUDED.shipment_package_status,
-    cargo_provider_name = EXCLUDED.cargo_provider_name,
-    cargo_tracking_number = EXCLUDED.cargo_tracking_number,
-    cargo_tracking_link = EXCLUDED.cargo_tracking_link,
-    package_last_modified_date = EXCLUDED.package_last_modified_date,
-    shipment_package_creation_date = EXCLUDED.shipment_package_creation_date,
-    estimated_delivery_start_date = EXCLUDED.estimated_delivery_start_date,
-    estimated_delivery_end_date = EXCLUDED.estimated_delivery_end_date,
-    lines_count = EXCLUDED.lines_count,
-    raw = EXCLUDED.raw,
-    synced_at = NOW();
+    "orderNumber" = EXCLUDED."orderNumber",
+    "status" = EXCLUDED."status",
+    "cargoProvider" = EXCLUDED."cargoProvider",
+    "trackingNumber" = EXCLUDED."trackingNumber",
+    "trackingLink" = EXCLUDED."trackingLink",
+    "lastModifiedAt" = EXCLUDED."lastModifiedAt",
+    "createdAt" = EXCLUDED."createdAt",
+    "estimatedDeliveryStart" = EXCLUDED."estimatedDeliveryStart",
+    "estimatedDeliveryEnd" = EXCLUDED."estimatedDeliveryEnd",
+    "linesCount" = EXCLUDED."linesCount",
+    "rawPayload" = EXCLUDED."rawPayload",
+    "syncedAt" = NOW();
 """
 
 
@@ -290,19 +296,19 @@ def upsert_packages(
 
         rows.append(
             {
-                "seller_id": seller_id,
-                "package_number": package_number,
-                "order_number": item.get("orderNumber"),
-                "shipment_package_status": item.get("shipmentPackageStatus"),
-                "cargo_provider_name": item.get("cargoProviderName"),
-                "cargo_tracking_number": item.get("cargoTrackingNumber"),
-                "cargo_tracking_link": item.get("cargoTrackingLink"),
-                "package_last_modified_date": item.get("packageLastModifiedDate"),
-                "shipment_package_creation_date": item.get("shipmentPackageCreationDate"),
-                "estimated_delivery_start_date": item.get("estimatedDeliveryStartDate"),
-                "estimated_delivery_end_date": item.get("estimatedDeliveryEndDate"),
-                "lines_count": lines_count,
-                "raw": Json(item),
+                "sellerId": seller_id,
+                "packageNumber": package_number,
+                "orderNumber": item.get("orderNumber"),
+                "status": item.get("shipmentPackageStatus"),
+                "cargoProvider": item.get("cargoProviderName"),
+                "trackingNumber": item.get("cargoTrackingNumber"),
+                "trackingLink": item.get("cargoTrackingLink"),
+                "lastModifiedAt": ms_to_datetime(item.get("packageLastModifiedDate")),
+                "createdAt": ms_to_datetime(item.get("shipmentPackageCreationDate")),
+                "estimatedDeliveryStart": ms_to_datetime(item.get("estimatedDeliveryStartDate")),
+                "estimatedDeliveryEnd": ms_to_datetime(item.get("estimatedDeliveryEndDate")),
+                "linesCount": lines_count,
+                "rawPayload": Json(item),
             }
         )
 
@@ -338,6 +344,7 @@ def main() -> int:
             "User-Agent": settings.user_agent,
             "Accept": "application/json",
             "Content-Type": "application/json",
+            "storeFrontCode": "SA",
         }
     )
 
