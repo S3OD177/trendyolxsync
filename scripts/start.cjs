@@ -6,9 +6,10 @@ const provider = resolvedUrl.startsWith("postgres") ? "postgresql" : "sqlite";
 const npxCommand = process.platform === "win32" ? "npx.cmd" : "npx";
 const nextCommand = process.platform === "win32" ? "next.cmd" : "next";
 
-function runCommand(command, args) {
+function runCommand(command, args, stdinData) {
   const result = spawnSync(command, args, {
-    stdio: "inherit",
+    stdio: stdinData ? ["pipe", "inherit", "inherit"] : "inherit",
+    input: stdinData || undefined,
     env: {
       ...process.env,
       DATABASE_URL: resolvedUrl,
@@ -20,6 +21,27 @@ function runCommand(command, args) {
 }
 
 if (provider === "postgresql") {
+  // Fix stale migration records: if a migration is marked as applied but the
+  // table doesn't exist, remove the record so migrate deploy re-applies it.
+  console.log("Checking for stale migration records...");
+  const repairStatus = runCommand(npxCommand, [
+    "prisma", "db", "execute", "--url", resolvedUrl, "--stdin"
+  ], `
+    DO $$
+    BEGIN
+      -- If shipment_packages table is missing but migration is recorded, remove the record
+      IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'shipment_packages')
+         AND EXISTS (SELECT 1 FROM _prisma_migrations WHERE migration_name = '0002_add_shipment_packages')
+      THEN
+        DELETE FROM _prisma_migrations WHERE migration_name = '0002_add_shipment_packages';
+        RAISE NOTICE 'Removed stale migration record for 0002_add_shipment_packages';
+      END IF;
+    END $$;
+  `);
+  if (repairStatus !== 0) {
+    console.log("Migration repair check failed (non-fatal), continuing...");
+  }
+
   console.log("Applying Prisma migrations (migrate deploy)...");
   const migrateStatus = runCommand(npxCommand, ["prisma", "migrate", "deploy"]);
 
