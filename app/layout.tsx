@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import "@/styles/globals.css";
 import { ToasterProvider } from "@/components/ui/toaster";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   title: "Trendyol BuyBox Guard",
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased selection:bg-zinc-100 selection:text-zinc-900`}>
+      <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased selection:bg-primary/20 selection:text-foreground`}>
         <ToasterProvider>{children}</ToasterProvider>
       </body>
     </html>

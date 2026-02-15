@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { formatApiError, isDatabaseUnavailableError } from "@/lib/db/errors";
+import { NO_STORE_HEADERS } from "@/lib/http/no-store";
 import { PIN_COOKIE_NAME } from "@/lib/auth/pin";
+import { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +11,7 @@ export async function GET(request: NextRequest) {
     const hasPinSession = request.cookies.get(PIN_COOKIE_NAME)?.value === "1";
 
     if (!hasPinSession) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_STORE_HEADERS });
     }
 
     const { searchParams } = new URL(request.url);
@@ -19,13 +22,13 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
 
     try {
-        const where: any = {};
+        const where: Prisma.ShipmentPackageWhereInput = {};
 
         if (search) {
             where.OR = [
                 { packageNumber: { contains: search, mode: "insensitive" } },
                 { orderNumber: { contains: search, mode: "insensitive" } },
-                { cargoTrackingNumber: { contains: search, mode: "insensitive" } }
+                { trackingNumber: { contains: search, mode: "insensitive" } }
             ];
         }
 
@@ -51,13 +54,19 @@ export async function GET(request: NextRequest) {
                 limit,
                 totalPages: Math.ceil(total / limit)
             }
-        });
+        }, { headers: NO_STORE_HEADERS });
 
     } catch (error) {
-        console.error("Fetch shipments failed:", error);
+        if (isDatabaseUnavailableError(error)) {
+            return NextResponse.json(
+                { rows: [], meta: { total: 0, page, limit, totalPages: 0 }, warning: "Database is unreachable." },
+                { headers: NO_STORE_HEADERS }
+            );
+        }
+
         return NextResponse.json(
-            { error: "Failed to fetch shipments" },
-            { status: 500 }
+            { error: formatApiError(error, "Failed to fetch shipments") },
+            { status: 500, headers: NO_STORE_HEADERS }
         );
     }
 }

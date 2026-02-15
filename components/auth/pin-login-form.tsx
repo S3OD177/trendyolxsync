@@ -3,8 +3,9 @@
 import { FormEvent, useState } from "react";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
+import { ChartNoAxesCombined, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 export function PinLoginForm({ nextPath = "/dashboard" }: { nextPath?: string }) {
@@ -48,29 +49,49 @@ export function PinLoginForm({ nextPath = "/dashboard" }: { nextPath?: string })
   };
 
   return (
-    <div className="mx-auto mt-20 max-w-md px-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Enter Access PIN</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form className="space-y-4" onSubmit={onSubmit}>
-            <Input
-              value={pin}
-              onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 4))}
-              inputMode="numeric"
-              pattern="[0-9]*"
-              type="password"
-              placeholder="4-digit PIN"
-              autoFocus
-            />
-            {error ? <p className="text-sm text-red-600">{error}</p> : null}
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? "Checking..." : "Unlock"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <div className="w-full max-w-sm animate-slide-up">
+        {/* Brand Logo */}
+        <div className="mb-8 flex flex-col items-center gap-3">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25">
+            <ChartNoAxesCombined className="h-7 w-7" />
+          </div>
+          <div className="text-center">
+            <h1 className="text-xl font-semibold text-foreground">BuyBox Guard</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Enter your PIN to continue</p>
+          </div>
+        </div>
+
+        <Card className="border-border/60">
+          <CardContent className="p-6">
+            <form className="space-y-4" onSubmit={onSubmit}>
+              <Input
+                value={pin}
+                onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 4))}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                type="password"
+                placeholder="****"
+                autoFocus
+                className="h-14 text-center text-2xl tracking-[0.5em] font-mono"
+              />
+              {error ? (
+                <p className="text-sm text-red-400 text-center">{error}</p>
+              ) : null}
+              <Button type="submit" disabled={loading} className="w-full h-11">
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Verifying...
+                  </>
+                ) : (
+                  "Unlock"
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

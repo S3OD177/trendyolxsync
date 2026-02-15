@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Loader2, RefreshCw, Package, ExternalLink, Truck } from "lucide-react";
+import { Loader2, RefreshCw, Package, ExternalLink } from "lucide-react";
 import {
     Table,
     TableBody,
@@ -35,20 +35,31 @@ export default function ShipmentsClient() {
     const [syncing, setSyncing] = useState(false);
     const [search, setSearch] = useState("");
     const { toast } = useToast();
+    const abortRef = useRef<AbortController | null>(null);
 
-    const fetchShipments = async () => {
+    const fetchShipments = useCallback(async (searchTerm: string) => {
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
+
         setLoading(true);
         try {
-            const res = await fetch(`/api/shipments?search=${encodeURIComponent(search)}&limit=50`);
+            const res = await fetch(
+                `/api/shipments?search=${encodeURIComponent(searchTerm)}&limit=50`,
+                { cache: "no-store", signal: controller.signal }
+            );
             if (!res.ok) throw new Error("Failed");
             const json = await res.json();
             setData(json.rows || []);
         } catch (err) {
+            if (err instanceof DOMException && err.name === "AbortError") return;
             toast({ title: "Error", description: "Could not load shipments", variant: "destructive" });
         } finally {
-            setLoading(false);
+            if (!controller.signal.aborted) {
+                setLoading(false);
+            }
         }
-    };
+    }, [toast]);
 
     const syncShipments = async () => {
         setSyncing(true);
@@ -60,8 +71,7 @@ export default function ShipmentsClient() {
             });
             if (!res.ok) throw new Error("Sync failed");
             toast({ title: "Sync Started", description: "Checking for new shipments..." });
-            // Reload after a delay
-            setTimeout(fetchShipments, 2000);
+            setTimeout(() => fetchShipments(search), 2000);
         } catch (err) {
             toast({ title: "Error", description: "Sync failed", variant: "destructive" });
         } finally {
@@ -69,9 +79,11 @@ export default function ShipmentsClient() {
         }
     };
 
+    // Debounce search to avoid fetching on every keystroke
     useEffect(() => {
-        fetchShipments();
-    }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
+        const timer = setTimeout(() => fetchShipments(search), 300);
+        return () => clearTimeout(timer);
+    }, [search, fetchShipments]);
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -88,44 +100,40 @@ export default function ShipmentsClient() {
 
     return (
         <div className="space-y-6">
-            <Card className="glass-card">
-                <CardHeader className="px-0 pt-0 pb-4">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <CardTitle>Shipments</CardTitle>
-                            <CardDescription>
-                                Track and manage your Trendyol shipments.
-                            </CardDescription>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={syncShipments}
-                                disabled={syncing}
-                                className="bg-background/50 backdrop-blur-sm"
-                            >
-                                {syncing ? (
-                                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                    <RefreshCw className="mr-2 h-3.5 w-3.5" />
-                                )}
-                                Sync Now
-                            </Button>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-0">
+            {/* Page Header */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h1 className="text-2xl font-semibold text-foreground">Shipments</h1>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Track and manage your Trendyol shipments. {data.length > 0 && `${data.length} packages found.`}
+                    </p>
+                </div>
+                <Button
+                    size="sm"
+                    onClick={syncShipments}
+                    disabled={syncing}
+                >
+                    {syncing ? (
+                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                        <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                    )}
+                    Sync Now
+                </Button>
+            </div>
+
+            <Card>
+                <CardContent className="p-6">
                     <div className="mb-4">
                         <Input
                             placeholder="Search package number, order number, tracking..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="max-w-sm bg-background/50"
+                            className="max-w-sm"
                         />
                     </div>
 
-                    <div className="rounded-md border">
+                    <div className="rounded-xl border border-border/40 overflow-hidden">
                         <Table>
                             <TableHeader>
                                 <TableRow>

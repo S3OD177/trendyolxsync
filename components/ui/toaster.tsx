@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { X } from "lucide-react";
 
 interface ToastItem {
   id: string;
@@ -27,21 +28,44 @@ export function ToasterProvider({ children }: { children: ReactNode }) {
     }, 4000);
   }, []);
 
+  const dismiss = useCallback((id: string) => {
+    setItems((current) => current.filter((item) => item.id !== id));
+  }, []);
+
   const value = useMemo(() => ({ toast }), [toast]);
 
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="fixed bottom-4 right-4 z-50 space-y-2">
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">
         {items.map((item) => (
           <div
             key={item.id}
-            className={`min-w-[260px] rounded-md border px-4 py-3 shadow ${
-              item.variant === "destructive" ? "border-red-500 bg-red-50 text-red-900" : "bg-card"
+            className={`pointer-events-auto animate-slide-in-right rounded-xl border px-4 py-3 shadow-lg backdrop-blur-lg ${
+              item.variant === "destructive"
+                ? "border-red-500/30 bg-red-950/90 text-red-100"
+                : "border-border/60 bg-card/95 text-foreground"
             }`}
           >
-            <div className="text-sm font-semibold">{item.title}</div>
-            {item.description ? <div className="text-xs text-muted-foreground">{item.description}</div> : null}
+            <div className="flex items-start gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold">{item.title}</div>
+                {item.description ? <div className="mt-0.5 text-xs text-muted-foreground">{item.description}</div> : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => dismiss(item.id)}
+                className="shrink-0 rounded-md p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="mt-2 h-0.5 w-full rounded-full bg-border/30 overflow-hidden">
+              <div
+                className={`h-full rounded-full ${item.variant === "destructive" ? "bg-red-400/50" : "bg-primary/40"}`}
+                style={{ animation: "progress-shrink 4s linear forwards" }}
+              />
+            </div>
           </div>
         ))}
       </div>

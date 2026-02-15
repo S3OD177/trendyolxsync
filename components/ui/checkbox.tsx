@@ -7,13 +7,13 @@ interface CheckboxProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>
 
 export function Checkbox({ className, label, ...props }: CheckboxProps) {
   return (
-    <label className="inline-flex items-center gap-2 text-sm">
+    <label className="inline-flex items-center gap-2 text-sm cursor-pointer select-none">
       <input
         type="checkbox"
-        className={cn("h-4 w-4 rounded border border-input text-primary focus:ring-ring", className)}
+        className={cn("h-[18px] w-[18px] rounded border border-input bg-secondary/50 text-primary accent-primary focus:ring-primary/30 cursor-pointer", className)}
         {...props}
       />
-      {label ? <span>{label}</span> : null}
+      {label ? <span className="text-foreground">{label}</span> : null}
     </label>
   );
 }

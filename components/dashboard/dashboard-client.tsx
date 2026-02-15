@@ -79,6 +79,7 @@ export function DashboardClient() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [apiWarning, setApiWarning] = useState<string | null>(null);
   const warningToastRef = useRef<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const [search, setSearch] = useState("");
   const [lostOnly, setLostOnly] = useState(false);
@@ -94,6 +95,10 @@ export function DashboardClient() {
   const autoPollAttemptRef = useRef(false);
 
   const loadRows = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -103,7 +108,10 @@ export function DashboardClient() {
         sort
       });
 
-      const response = await fetch(`/api/dashboard?${params.toString()}`, { cache: "no-store" });
+      const response = await fetch(`/api/dashboard?${params.toString()}`, {
+        cache: "no-store",
+        signal: controller.signal
+      });
       const data = (await readJsonResponse(response)) as DashboardResponse;
 
       if (!response.ok) {
@@ -126,13 +134,16 @@ export function DashboardClient() {
         warningToastRef.current = null;
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
       toast({
         title: "Failed to fetch dashboard",
         description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [search, lostOnly, lowMarginRisk, sort, toast]);
 
@@ -391,49 +402,61 @@ export function DashboardClient() {
 
   return (
     <div className="space-y-6">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Monitor BuyBox status and competitor pricing in real-time.</p>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="glass-card">
+        <Card className="group hover:border-border transition-all">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               Monitored Products
             </CardTitle>
-            <Boxes className="h-4 w-4 text-muted-foreground" />
+            <div className="rounded-lg bg-primary/10 p-2">
+              <Boxes className="h-4 w-4 text-primary" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{summary.total}</div>
-            <p className="text-xs text-muted-foreground">
-              Total active SKUs being tracked
+            <div className="text-3xl font-bold text-foreground">{summary.total}</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Active SKUs tracked
             </p>
           </CardContent>
         </Card>
-        <Card className="glass-card border-l-4 border-l-destructive/50">
+        <Card className="group hover:border-red-500/30 transition-all">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Lost BuyBox</CardTitle>
-            <ShieldAlert className="h-4 w-4 text-destructive" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Lost BuyBox</CardTitle>
+            <div className="rounded-lg bg-red-500/10 p-2">
+              <ShieldAlert className="h-4 w-4 text-red-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">{summary.lost}</div>
-            <p className="text-xs text-muted-foreground">
-              Products where we do not have the BuyBox
+            <div className="text-3xl font-bold text-red-400">{summary.lost}</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Without BuyBox
             </p>
           </CardContent>
         </Card>
-        <Card className="glass-card border-l-4 border-l-amber-500/50">
+        <Card className="group hover:border-amber-500/30 transition-all">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Margin Risk</CardTitle>
-            <TriangleAlert className="h-4 w-4 text-amber-500" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Margin Risk</CardTitle>
+            <div className="rounded-lg bg-amber-500/10 p-2">
+              <TriangleAlert className="h-4 w-4 text-amber-400" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-500">{summary.risk}</div>
-            <p className="text-xs text-muted-foreground">
-              Products with margin &lt; 5%
+            <div className="text-3xl font-bold text-amber-400">{summary.risk}</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Margin below 5%
             </p>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="glass border-none shadow-none bg-transparent">
-        <CardHeader className="px-0 pt-0 pb-4">
+      <Card>
+        <CardHeader className="pb-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle>Market Overview</CardTitle>
@@ -441,34 +464,28 @@ export function DashboardClient() {
                 Real-time BuyBox status and competitor pricing.
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => triggerPoll(true)}
-                disabled={polling}
-                className="bg-background/50 backdrop-blur-sm"
-              >
-                {polling ? (
-                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-2 h-3.5 w-3.5" />
-                )}
-                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                  Refresh Data
-                </span>
-              </Button>
-            </div>
+            <Button
+              size="sm"
+              onClick={() => triggerPoll(true)}
+              disabled={polling}
+            >
+              {polling ? (
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-3.5 w-3.5" />
+              )}
+              Refresh Data
+            </Button>
           </div>
         </CardHeader>
-        <CardContent className="p-0">
-          <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center">
+        <CardContent className="pt-0">
+          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center">
             <div className="relative flex-1">
               <Input
                 placeholder="Filter by SKU or title..."
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                className="max-w-sm bg-muted/20 border-white/10 text-foreground placeholder:text-muted-foreground/70 focus-visible:ring-primary/20"
+                className="max-w-sm"
               />
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -480,24 +497,21 @@ export function DashboardClient() {
                   { label: "Largest Price Gap", value: "largest_delta" },
                   { label: "Critical Margins", value: "low_margin" }
                 ]}
+                className="w-[180px]"
               />
-              <div className="flex items-center space-x-2 rounded-md border bg-background/50 p-2">
-                <Checkbox
-                  checked={lostOnly}
-                  onChange={(event) => setLostOnly(event.target.checked)}
-                  id="lost-only"
-                />
-                <Label htmlFor="lost-only" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Lost BuyBox
-                </Label>
-              </div>
+              <Checkbox
+                checked={lostOnly}
+                onChange={(event) => setLostOnly(event.target.checked)}
+                id="lost-only"
+                label="Lost BuyBox"
+              />
             </div>
           </div>
 
-          <div className="rounded-xl border border-white/5 bg-white/5 backdrop-blur-md dark:bg-zinc-900/30">
+          <div className="rounded-xl border border-border/40 bg-card/50 overflow-hidden">
             {apiWarning ? (
-              <div className="border-b bg-amber-500/10 px-4 py-2 text-sm text-amber-500">
-                <Activity className="mr-2 inline-block h-3 w-3" />
+              <div className="border-b border-amber-500/20 bg-amber-500/5 px-4 py-2.5 text-sm text-amber-400">
+                <Activity className="mr-2 inline-block h-3.5 w-3.5" />
                 {apiWarning}
               </div>
             ) : null}

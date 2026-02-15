@@ -101,34 +101,33 @@ export function AlertsCenterClient() {
   const unreadCount = alerts.filter((item) => !item.isRead).length;
 
   return (
-    <Card className="surface-panel">
-      <CardHeader className="space-y-4">
-        <div className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-lg text-slate-900">Alerts Center</CardTitle>
-            <p className="mt-1 text-sm text-slate-500">
-              {unreadCount} unread alerts out of {alerts.length} total.
-            </p>
-          </div>
-          <div className="surface-muted px-3 py-2">
-            <Checkbox
-              checked={unreadOnly}
-              onChange={(event) => setUnreadOnly(event.target.checked)}
-              label="Unread only"
-            />
-          </div>
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">Alerts</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {unreadCount} unread out of {alerts.length} total alerts.
+          </p>
         </div>
-      </CardHeader>
-      <CardContent>
+        <Checkbox
+          checked={unreadOnly}
+          onChange={(event) => setUnreadOnly(event.target.checked)}
+          label="Show unread only"
+        />
+      </div>
+
+    <Card>
+      <CardContent className="p-0">
         {warning ? (
-          <div className="mb-3 rounded-xl border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <div className="border-b border-amber-500/20 bg-amber-500/5 px-4 py-2.5 text-sm text-amber-400">
             {warning}
           </div>
         ) : null}
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading alerts...</p>
         ) : visibleAlerts.length === 0 ? (
-          <div className="surface-muted p-8 text-center text-sm text-slate-500">
+          <div className="surface-muted p-8 text-center text-sm text-muted-foreground">
             No alerts to display.
           </div>
         ) : (
@@ -147,11 +146,11 @@ export function AlertsCenterClient() {
             <TableBody>
               {visibleAlerts.map((alert) => (
                 <TableRow key={alert.id}>
-                  <TableCell className="text-xs text-slate-500">
+                  <TableCell className="text-xs text-muted-foreground">
                     {new Date(alert.createdAt).toLocaleString()}
                   </TableCell>
                   <TableCell>
-                    <div className="font-semibold text-slate-900">{alert.product.sku}</div>
+                    <div className="font-semibold text-foreground">{alert.product.sku}</div>
                     <div className="text-xs text-muted-foreground">{alert.product.title}</div>
                   </TableCell>
                   <TableCell>{alert.type}</TableCell>
@@ -176,5 +175,6 @@ export function AlertsCenterClient() {
         )}
       </CardContent>
     </Card>
+    </div>
   );
 }
