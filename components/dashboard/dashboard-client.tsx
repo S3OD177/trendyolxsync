@@ -203,7 +203,8 @@ export function DashboardClient() {
     }
 
     const hasSnapshots = rows.some((row) => row.lastCheckedAt !== null);
-    if (!hasSnapshots) {
+    const hasBuyboxData = rows.some((row) => row.buyboxStatus !== "UNKNOWN" || row.competitorMinPrice !== null);
+    if (!hasSnapshots || !hasBuyboxData) {
       autoPollAttemptRef.current = true;
       void triggerPoll(false);
     }

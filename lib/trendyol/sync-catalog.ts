@@ -119,13 +119,33 @@ export async function syncCatalogFromTrendyol(
         }
 
         if (snapshotPrice !== null) {
+          let competitorMinPrice: number | null = null;
+          let competitorCount: number | null = null;
+          let buyboxStatus: "WIN" | "LOSE" | "UNKNOWN" = "UNKNOWN";
+          let buyboxSellerId: string | null = null;
+
+          try {
+            const competitor = await trendyolClient.fetchCompetitorPrices({
+              sku: savedProduct.sku,
+              barcode: savedProduct.barcode ?? undefined,
+              productId: savedProduct.trendyolProductId ?? undefined
+            });
+            competitorMinPrice = competitor.competitorMinPrice;
+            competitorCount = competitor.competitorCount;
+            buyboxSellerId = competitor.buyboxSellerId;
+            buyboxStatus = competitor.buyboxStatus;
+          } catch {
+            // Best-effort buybox fetch during sync
+          }
+
           await prisma.priceSnapshot.create({
             data: {
               productId: savedProduct.id,
               ourPrice: snapshotPrice,
-              competitorMinPrice: null,
-              competitorCount: null,
-              buyboxStatus: "UNKNOWN",
+              competitorMinPrice,
+              competitorCount,
+              buyboxStatus,
+              buyboxSellerId,
               rawPayloadJson: snapshotRaw as Prisma.InputJsonValue
             }
           });
