@@ -3,7 +3,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Boxes, Loader2, RefreshCw, ShieldAlert, TrendingDown, TriangleAlert, Activity, ArrowUpRight } from "lucide-react";
+import { Boxes, Loader2, RefreshCw, ShieldAlert, TrendingDown, TriangleAlert, Activity, ArrowUpRight, HelpCircle } from "lucide-react";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +17,7 @@ import { useToast } from "@/components/ui/toaster";
 import { Badge } from "@/components/ui/badge";
 import { formatSar } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface DashboardRow {
   productId: string;
@@ -72,6 +73,8 @@ async function readJsonResponse(response: Response): Promise<Record<string, any>
   }
 }
 
+const REFRESH_INTERVAL_MS = 30000; // 30 seconds
+
 export function DashboardClient() {
   const { toast } = useToast();
   const [rows, setRows] = useState<DashboardRow[]>([]);
@@ -96,6 +99,8 @@ export function DashboardClient() {
   const autoPollAttemptRef = useRef(false);
 
   const hasLoadedRef = useRef(false);
+  const [nextUpdate, setNextUpdate] = useState<number>(Date.now() + REFRESH_INTERVAL_MS);
+  const [timeLeft, setTimeLeft] = useState<number>(30);
 
   const loadRows = useCallback(async () => {
     abortRef.current?.abort();
@@ -127,6 +132,7 @@ export function DashboardClient() {
 
       setRows(Array.isArray(data.rows) ? data.rows : []);
       hasLoadedRef.current = true; // Mark as loaded so we don't show full loader again
+      setNextUpdate(Date.now() + REFRESH_INTERVAL_MS);
 
       const warning = typeof data.warning === "string" ? data.warning : null;
       setApiWarning(warning);
@@ -200,10 +206,20 @@ export function DashboardClient() {
     loadRows();
   }, [loadRows]);
 
+  // Replaces the old setInterval(loadRows, 45000)
   useEffect(() => {
-    const interval = window.setInterval(loadRows, 45000);
-    return () => window.clearInterval(interval);
-  }, [loadRows]);
+    const timer = setInterval(() => {
+      const msRemaining = nextUpdate - Date.now();
+      const secRemaining = Math.max(0, Math.ceil(msRemaining / 1000));
+      setTimeLeft(secRemaining);
+
+      if (msRemaining <= 0) {
+        loadRows();
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [nextUpdate, loadRows]);
 
   useEffect(() => {
     if (loading || polling || autoPollAttemptRef.current || rows.length === 0) {
@@ -373,7 +389,45 @@ export function DashboardClient() {
     {
       key: "buybox",
       header: "Status",
-      cell: (row) => <StatusBadge status={row.buyboxStatus} />
+      cell: (row) => {
+        if (!row.lastCheckedAt) {
+          return (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Badge variant="outline" className="gap-1.5 text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    PENDING
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Waiting for initial sync</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+        }
+
+        if (row.buyboxStatus === "UNKNOWN") {
+          return (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Badge variant="secondary" className="gap-1.5 text-muted-foreground">
+                    <HelpCircle className="h-3 w-3" />
+                    NO DATA
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Checked but no BuyBox data found</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+        }
+
+        return <StatusBadge status={row.buyboxStatus} />;
+      }
     },
     {
       key: "suggested",
@@ -482,20 +536,25 @@ export function DashboardClient() {
                 Real-time BuyBox status and competitor pricing.
               </CardDescription>
             </div>
-            <Button
-              size="sm"
-              onClick={() => triggerPoll(true)}
-              disabled={polling}
-              variant="outline"
-              className={cn("transition-all", polling && "border-primary/50 bg-primary/5")}
-            >
-              {polling ? (
-                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-2 h-3.5 w-3.5" />
-              )}
-              {polling ? "Updating..." : "Refresh Data"}
-            </Button>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground font-medium tabular-nums hidden sm:inline-block">
+                Next update in {timeLeft}s
+              </span>
+              <Button
+                size="sm"
+                onClick={() => triggerPoll(true)}
+                disabled={polling}
+                variant="outline"
+                className={cn("transition-all", polling && "border-primary/50 bg-primary/5")}
+              >
+                {polling ? (
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                )}
+                {polling ? "Updating..." : "Refresh Data"}
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="pt-0">
@@ -557,7 +616,38 @@ export function DashboardClient() {
                               <div className="font-semibold">{row.sku}</div>
                               <div className="line-clamp-2 text-xs text-muted-foreground">{row.title}</div>
                             </div>
-                            <StatusBadge status={row.buyboxStatus} />
+                            {/* Status Logic */}
+                            {!row.lastCheckedAt ? (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <Badge variant="outline" className="gap-1.5 text-muted-foreground">
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                      PENDING
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Waiting for initial sync</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : row.buyboxStatus === "UNKNOWN" ? (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <Badge variant="secondary" className="gap-1.5 text-muted-foreground">
+                                      <HelpCircle className="h-3 w-3" />
+                                      NO DATA
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Checked but no BuyBox data found</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : (
+                              <StatusBadge status={row.buyboxStatus} />
+                            )}
                           </div>
                           <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
                             <div>
