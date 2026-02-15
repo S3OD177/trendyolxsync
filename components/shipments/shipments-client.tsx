@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Loader2, RefreshCw, Package, ExternalLink, Truck } from "lucide-react";
+import { Loader2, RefreshCw, Package, ExternalLink } from "lucide-react";
 import {
     Table,
     TableBody,
@@ -213,6 +213,3 @@ export default function ShipmentsClient() {
         </div>
     );
 }
-
-// Remove unused imports
-

@@ -230,29 +230,41 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
 
   return (
     <div className="space-y-6">
-      <Card className="surface-panel">
-        <CardHeader>
-          <CardTitle className="text-lg text-foreground">
-            {payload.product.sku} - {payload.product.title}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-3">
-          <div className="surface-muted p-3">
-            <p className="text-xs text-muted-foreground">Break-even Price</p>
-            <p className="text-lg font-semibold">{formatSar(payload.breakEven)}</p>
-          </div>
-          <div className="surface-muted p-3">
-            <p className="text-xs text-muted-foreground">Barcode</p>
-            <p className="text-lg font-semibold">{payload.product.barcode || "-"}</p>
-          </div>
-          <div className="surface-muted p-3">
-            <p className="text-xs text-muted-foreground">Listing ID</p>
-            <p className="text-lg font-semibold">{payload.product.trendyolProductId || "-"}</p>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Page Header with Back Button */}
+      <div>
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Dashboard
+        </Link>
+        <h1 className="text-2xl font-semibold text-foreground">{payload.product.title}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">SKU: {payload.product.sku}</p>
+      </div>
 
-      <Card className="surface-panel">
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Break-even Price</p>
+            <p className="text-2xl font-bold text-foreground mt-1">{formatSar(payload.breakEven)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Barcode</p>
+            <p className="text-2xl font-bold text-foreground mt-1">{payload.product.barcode || "-"}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Listing ID</p>
+            <p className="text-2xl font-bold text-foreground mt-1">{payload.product.trendyolProductId || "-"}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
         <CardHeader>
           <CardTitle className="text-lg text-foreground">Price History</CardTitle>
         </CardHeader>
@@ -261,14 +273,23 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
                 <XAxis dataKey="checkedAt" hide />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="ourPrice" stroke="#2563eb" strokeWidth={2} name="Our Price" />
+                <YAxis tick={{ fill: "hsl(215 20% 55%)", fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(222 47% 10%)",
+                    border: "1px solid hsl(217 33% 20%)",
+                    borderRadius: "12px",
+                    color: "hsl(210 40% 98%)",
+                    fontSize: "13px",
+                  }}
+                />
+                <Line type="monotone" dataKey="ourPrice" stroke="hsl(217 91% 60%)" strokeWidth={2} dot={false} name="Our Price" />
                 <Line
                   type="monotone"
                   dataKey="competitorMinPrice"
-                  stroke="#dc2626"
+                  stroke="hsl(0 84% 60%)"
                   strokeWidth={2}
+                  dot={false}
                   name="Competitor Min"
                 />
               </LineChart>
@@ -278,7 +299,7 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="surface-panel">
+        <Card>
           <CardHeader>
             <CardTitle className="text-lg text-foreground">Simulation (SAR)</CardTitle>
           </CardHeader>
@@ -294,35 +315,35 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
             </div>
 
             {simulationResult ? (
-              <div className="grid gap-2 text-sm">
-                <div className="flex justify-between">
-                  <span>Gross Revenue</span>
-                  <span>{formatSar(toNumber(simulationPrice, 0))}</span>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between py-1.5">
+                  <span className="text-muted-foreground">Gross Revenue</span>
+                  <span className="font-medium text-foreground">{formatSar(toNumber(simulationPrice, 0))}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Net Revenue</span>
-                  <span>{formatSar(simulationResult.netRevenue)}</span>
+                <div className="flex justify-between py-1.5">
+                  <span className="text-muted-foreground">Net Revenue</span>
+                  <span className="font-medium text-foreground">{formatSar(simulationResult.netRevenue)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Total Fees</span>
-                  <span>{formatSar(simulationResult.totalFees)}</span>
+                <div className="flex justify-between py-1.5">
+                  <span className="text-muted-foreground">Total Fees</span>
+                  <span className="font-medium text-foreground">{formatSar(simulationResult.totalFees)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Profit</span>
-                  <span>
+                <div className="border-t border-border/40 pt-2 flex justify-between py-1.5">
+                  <span className="font-medium text-foreground">Profit</span>
+                  <span className={`font-bold ${simulationResult.profit >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                     {formatSar(simulationResult.profit)} ({simulationResult.profitPct.toFixed(2)}%)
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Break-even Price</span>
-                  <span>{formatSar(payload.breakEven)}</span>
+                <div className="flex justify-between py-1.5">
+                  <span className="text-muted-foreground">Break-even Price</span>
+                  <span className="font-medium text-foreground">{formatSar(payload.breakEven)}</span>
                 </div>
               </div>
             ) : null}
           </CardContent>
         </Card>
 
-        <Card className="surface-panel">
+        <Card>
           <CardHeader>
             <CardTitle className="text-lg text-foreground">Recent Alerts</CardTitle>
           </CardHeader>
@@ -349,7 +370,7 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
         </Card>
       </div>
 
-      <Card className="surface-panel">
+      <Card>
         <CardHeader>
           <CardTitle className="text-lg text-foreground">Cost & Fee Settings (Per SKU)</CardTitle>
         </CardHeader>
