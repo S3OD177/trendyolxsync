@@ -221,6 +221,7 @@ export class TrendyolClient {
 
       if (![429, 500, 502, 503, 504].includes(response.status) || attempt > retries) {
         const body = await response.text();
+        console.error(`[trendyol] ${init?.method ?? "GET"} ${path} → ${response.status}: ${body.slice(0, 200)}`);
         throw new Error(`Trendyol API ${response.status}: ${body.slice(0, 300)}`);
       }
 
@@ -320,7 +321,11 @@ export class TrendyolClient {
       }
     );
 
-    return { raw, entries: this.extractListPayload(raw) };
+    const entries = this.extractListPayload(raw);
+    console.log(
+      `[buybox] response for ${unique.join(",")}: keys=${raw ? Object.keys(raw).join(",") : "null"}, entries=${entries.length}`
+    );
+    return { raw, entries };
   }
 
   private flattenProductsWithVariants(rows: any[]): any[] {
