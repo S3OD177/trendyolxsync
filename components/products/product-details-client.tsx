@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toaster";
 import { formatSar } from "@/lib/utils/money";
@@ -179,19 +179,9 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
       const body = {
         costPrice: toNumber(formData.get("costPrice"), 0),
         commissionRate: toNumber(formData.get("commissionRate"), 0),
-        serviceFeeType: String(formData.get("serviceFeeType")) as "FIXED" | "PERCENT",
-        serviceFeeValue: toNumber(formData.get("serviceFeeValue"), 0),
         shippingCost: toNumber(formData.get("shippingCost"), 0),
-        handlingCost: toNumber(formData.get("handlingCost"), 0),
         vatRate: toNumber(formData.get("vatRate"), 15),
-        vatMode: String(formData.get("vatMode")) as "INCLUSIVE" | "EXCLUSIVE",
-        minProfitType: String(formData.get("minProfitType")) as "SAR" | "PERCENT",
         minProfitValue: toNumber(formData.get("minProfitValue"), 0),
-        undercutStep: toNumber(formData.get("undercutStep"), 0.5),
-        alertThresholdSar: toNumber(formData.get("alertThresholdSar"), 2),
-        alertThresholdPct: toNumber(formData.get("alertThresholdPct"), 1),
-        cooldownMinutes: toNumber(formData.get("cooldownMinutes"), 15),
-        competitorDropPct: toNumber(formData.get("competitorDropPct"), 3)
       };
 
       const response = await fetch(`/api/products/${productId}/settings`, {
@@ -372,10 +362,10 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg text-foreground">Cost & Fee Settings (Per SKU)</CardTitle>
+          <CardTitle className="text-lg text-foreground">Cost & Fee Settings</CardTitle>
         </CardHeader>
         <CardContent>
-          <form className="grid gap-4 md:grid-cols-3" onSubmit={saveSettings}>
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={saveSettings}>
             <div>
               <Label>Cost Price (SAR)</Label>
               <Input name="costPrice" type="number" defaultValue={s.costPrice} step="0.01" />
@@ -385,80 +375,19 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
               <Input name="commissionRate" type="number" defaultValue={s.commissionRate} step="0.0001" />
             </div>
             <div>
-              <Label>Service Fee Type</Label>
-              <Select
-                name="serviceFeeType"
-                defaultValue={s.serviceFeeType}
-                options={[
-                  { label: "Percent", value: "PERCENT" },
-                  { label: "Fixed", value: "FIXED" }
-                ]}
-              />
-            </div>
-            <div>
-              <Label>Service Fee Value</Label>
-              <Input name="serviceFeeValue" type="number" defaultValue={s.serviceFeeValue} step="0.01" />
-            </div>
-            <div>
               <Label>Shipping Cost (SAR)</Label>
               <Input name="shippingCost" type="number" defaultValue={s.shippingCost} step="0.01" />
-            </div>
-            <div>
-              <Label>Handling Cost (SAR)</Label>
-              <Input name="handlingCost" type="number" defaultValue={s.handlingCost} step="0.01" />
             </div>
             <div>
               <Label>VAT Rate (%)</Label>
               <Input name="vatRate" type="number" defaultValue={s.vatRate} step="0.01" />
             </div>
             <div>
-              <Label>VAT Mode</Label>
-              <Select
-                name="vatMode"
-                defaultValue={s.vatMode}
-                options={[
-                  { label: "Inclusive", value: "INCLUSIVE" },
-                  { label: "Exclusive", value: "EXCLUSIVE" }
-                ]}
-              />
-            </div>
-            <div>
-              <Label>Min Profit Type</Label>
-              <Select
-                name="minProfitType"
-                defaultValue={s.minProfitType}
-                options={[
-                  { label: "SAR", value: "SAR" },
-                  { label: "%", value: "PERCENT" }
-                ]}
-              />
-            </div>
-            <div>
-              <Label>Min Profit Value</Label>
+              <Label>Min Profit (SAR)</Label>
               <Input name="minProfitValue" type="number" defaultValue={s.minProfitValue} step="0.01" />
             </div>
-            <div>
-              <Label>Undercut Step (SAR)</Label>
-              <Input name="undercutStep" type="number" defaultValue={s.undercutStep} step="0.01" />
-            </div>
-            <div>
-              <Label>Alert Threshold (SAR)</Label>
-              <Input name="alertThresholdSar" type="number" defaultValue={s.alertThresholdSar} step="0.01" />
-            </div>
-            <div>
-              <Label>Alert Threshold (%)</Label>
-              <Input name="alertThresholdPct" type="number" defaultValue={s.alertThresholdPct} step="0.01" />
-            </div>
-            <div>
-              <Label>Cooldown Minutes</Label>
-              <Input name="cooldownMinutes" type="number" defaultValue={s.cooldownMinutes} />
-            </div>
-            <div>
-              <Label>Competitor Drop Trigger (%)</Label>
-              <Input name="competitorDropPct" type="number" defaultValue={s.competitorDropPct} step="0.01" />
-            </div>
-            <div className="md:col-span-3">
-              <Button type="submit" disabled={savingSettings}>
+            <div className="flex items-end">
+              <Button type="submit" disabled={savingSettings} className="w-full">
                 {savingSettings ? "Saving..." : "Save SKU Settings"}
               </Button>
             </div>
