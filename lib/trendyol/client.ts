@@ -628,7 +628,7 @@ export class TrendyolClient {
     if (options.orderByDirection) params.set("orderByDirection", options.orderByDirection);
 
     const qs = params.toString();
-    const url = `/integration/order/sellers/${this.sellerId}/shipment-packages?${qs}`;
+    const url = `/integration/order/sellers/${this.sellerId}/orders?${qs}`;
 
     const response = await this.request<any>(url);
 
