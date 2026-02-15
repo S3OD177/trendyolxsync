@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Loader2, RefreshCw, Package, ExternalLink } from "lucide-react";
+import { Loader2, RefreshCw, Package, ExternalLink, Radio } from "lucide-react";
 import {
     Table,
     TableBody,
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toaster";
+import { cn } from "@/lib/utils/cn";
 
 interface ShipmentPackage {
     id: string;
@@ -29,20 +30,27 @@ interface ShipmentPackage {
     estimatedDeliveryStart: string | null;
 }
 
+const REFRESH_INTERVAL_MS = 30000; // 30 seconds
+
 export default function ShipmentsClient() {
     const [data, setData] = useState<ShipmentPackage[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isRefetching, setIsRefetching] = useState(false);
     const [syncing, setSyncing] = useState(false);
     const [search, setSearch] = useState("");
     const { toast } = useToast();
     const abortRef = useRef<AbortController | null>(null);
+    const [nextUpdate, setNextUpdate] = useState<number>(Date.now() + REFRESH_INTERVAL_MS);
+    const [timeLeft, setTimeLeft] = useState<number>(30);
 
-    const fetchShipments = useCallback(async (searchTerm: string) => {
+    const fetchShipments = useCallback(async (searchTerm: string, isInitial = false) => {
         abortRef.current?.abort();
         const controller = new AbortController();
         abortRef.current = controller;
 
-        setLoading(true);
+        if (isInitial) setLoading(true);
+        else setIsRefetching(true);
+
         try {
             const res = await fetch(
                 `/api/shipments?search=${encodeURIComponent(searchTerm)}&limit=50`,
@@ -51,12 +59,14 @@ export default function ShipmentsClient() {
             if (!res.ok) throw new Error("Failed");
             const json = await res.json();
             setData(json.rows || []);
+            setNextUpdate(Date.now() + REFRESH_INTERVAL_MS);
         } catch (err) {
             if (err instanceof DOMException && err.name === "AbortError") return;
             toast({ title: "Error", description: "Could not load shipments", variant: "destructive" });
         } finally {
             if (!controller.signal.aborted) {
                 setLoading(false);
+                setIsRefetching(false);
             }
         }
     }, [toast]);
@@ -71,6 +81,7 @@ export default function ShipmentsClient() {
             });
             if (!res.ok) throw new Error("Sync failed");
             toast({ title: "Sync Started", description: "Checking for new shipments..." });
+            // Small delay to allow backend to start processing, then fetch
             setTimeout(() => fetchShipments(search), 2000);
         } catch (err) {
             toast({ title: "Error", description: "Sync failed", variant: "destructive" });
@@ -79,11 +90,31 @@ export default function ShipmentsClient() {
         }
     };
 
-    // Debounce search to avoid fetching on every keystroke
+    // Debounce search
     useEffect(() => {
-        const timer = setTimeout(() => fetchShipments(search), 300);
+        const timer = setTimeout(() => {
+            // Only show loading spinner on table if we have no data yet
+            // otherwise just refetch quietly
+            const isInitial = data.length === 0 && loading;
+            fetchShipments(search, isInitial);
+        }, 300);
         return () => clearTimeout(timer);
     }, [search, fetchShipments]);
+
+    // Live Countdown Timer
+    useEffect(() => {
+        const timer = setInterval(() => {
+            const msRemaining = nextUpdate - Date.now();
+            const secRemaining = Math.max(0, Math.ceil(msRemaining / 1000));
+            setTimeLeft(secRemaining);
+
+            if (msRemaining <= 0) {
+                fetchShipments(search);
+            }
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [nextUpdate, search, fetchShipments]);
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -103,23 +134,37 @@ export default function ShipmentsClient() {
             {/* Page Header */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h1 className="text-2xl font-semibold text-foreground">Shipments</h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        Track and manage your Trendyol shipments. {data.length > 0 && `${data.length} packages found.`}
+                    <h1 className="text-2xl font-semibold text-foreground flex items-center gap-3">
+                        Shipments
+                        <Badge variant="outline" className="ml-2 gap-1.5 py-1 px-3 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-normal">
+                            <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                            Live Updates
+                        </Badge>
+                    </h1>
+                    <p className="mt-1 text-sm text-muted-foreground flex items-center gap-2">
+                        <span>Track and manage your Trendyol shipments.</span>
+                        {data.length > 0 && <span className="hidden sm:inline">•</span>}
+                        {data.length > 0 && <span>{data.length} packages found.</span>}
                     </p>
                 </div>
-                <Button
-                    size="sm"
-                    onClick={syncShipments}
-                    disabled={syncing}
-                >
-                    {syncing ? (
-                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                        <RefreshCw className="mr-2 h-3.5 w-3.5" />
-                    )}
-                    Sync Now
-                </Button>
+                <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground font-medium tabular-nums hidden sm:inline-block">
+                        Next update in {timeLeft}s
+                    </span>
+                    <Button
+                        size="sm"
+                        onClick={syncShipments}
+                        disabled={syncing}
+                        variant="outline"
+                        className={cn("transition-all", syncing && "border-primary/50 bg-primary/5")}
+                    >
+                        <RefreshCw className={cn("mr-2 h-3.5 w-3.5", (syncing || isRefetching) && "animate-spin")} />
+                        {syncing ? "Syncing..." : "Sync Now"}
+                    </Button>
+                </div>
             </div>
 
             <Card>
@@ -146,7 +191,7 @@ export default function ShipmentsClient() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {loading ? (
+                                {loading && data.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={6} className="h-24 text-center">
                                             <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />

@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toaster";
+import { Badge } from "@/components/ui/badge";
 import { formatSar } from "@/lib/utils/money";
 import { cn } from "@/lib/utils/cn";
 
@@ -99,7 +100,11 @@ export function DashboardClient() {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    setLoading(true);
+    // Only show full loading state if we don't have data yet
+    if (rows.length === 0) {
+      setLoading(true);
+    }
+
     try {
       const params = new URLSearchParams({
         search,
@@ -145,7 +150,7 @@ export function DashboardClient() {
         setLoading(false);
       }
     }
-  }, [search, lostOnly, lowMarginRisk, sort, toast]);
+  }, [search, lostOnly, lowMarginRisk, sort, toast, rows.length]);
 
   const triggerPoll = useCallback(
     async (manual = false) => {
@@ -459,8 +464,17 @@ export function DashboardClient() {
       <Card>
         <CardHeader className="pb-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle>Market Overview</CardTitle>
+            <div className="space-y-1">
+              <CardTitle className="flex items-center gap-2">
+                Market Overview
+                <Badge variant="outline" className="ml-2 gap-1.5 py-0.5 px-2 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-normal text-xs uppercase tracking-wider">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                  </span>
+                  Live
+                </Badge>
+              </CardTitle>
               <CardDescription>
                 Real-time BuyBox status and competitor pricing.
               </CardDescription>
@@ -469,13 +483,15 @@ export function DashboardClient() {
               size="sm"
               onClick={() => triggerPoll(true)}
               disabled={polling}
+              variant="outline"
+              className={cn("transition-all", polling && "border-primary/50 bg-primary/5")}
             >
               {polling ? (
                 <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
               ) : (
                 <RefreshCw className="mr-2 h-3.5 w-3.5" />
               )}
-              Refresh Data
+              {polling ? "Updating..." : "Refresh Data"}
             </Button>
           </div>
         </CardHeader>
@@ -517,7 +533,7 @@ export function DashboardClient() {
               </div>
             ) : null}
 
-            {loading ? (
+            {loading && rows.length === 0 ? (
               <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Updating market data...
