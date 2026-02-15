@@ -170,21 +170,20 @@ export function SettingsClient() {
         </CardContent>
       </Card>
 
-      <Card className="surface-panel">
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <div className="space-y-1">
-            <CardTitle className="text-lg text-foreground">Global Pricing Defaults (SAR)</CardTitle>
+            <CardTitle className="text-lg">Global Pricing Defaults (SAR)</CardTitle>
           </div>
           <div className="flex items-center space-x-2">
-            <Label htmlFor="mode-toggle" className="text-sm text-muted-foreground">Simple Mode</Label>
+            <Label htmlFor="mode-toggle" className="text-sm text-muted-foreground">Advanced</Label>
             <Button
               type="button"
-              variant={simpleMode ? "default" : "outline"}
+              variant={!simpleMode ? "default" : "outline"}
               size="sm"
               onClick={() => setSimpleMode(!simpleMode)}
-              className={simpleMode ? "bg-cyan-700 hover:bg-cyan-800" : ""}
             >
-              {simpleMode ? "On" : "Off"}
+              {simpleMode ? "Off" : "On"}
             </Button>
           </div>
         </CardHeader>
@@ -402,7 +401,7 @@ export function SettingsClient() {
             )}
 
             <div className="md:col-span-2 pt-4">
-              <Button type="submit" disabled={saving} className="bg-cyan-700 text-white hover:bg-cyan-800 w-full md:w-auto">
+              <Button type="submit" disabled={saving} className="w-full md:w-auto">
                 {saving ? "Saving..." : "Save Settings"}
               </Button>
             </div>
