@@ -11,7 +11,7 @@ interface EndpointDef {
   id: string;
   name: string;
   description: string;
-  method: "GET" | "POST";
+  method: "GET" | "POST" | "PUT" | "DELETE";
   pathTemplate: string;
   body?: Record<string, unknown>;
   category: string;
@@ -29,19 +29,27 @@ interface TestResult {
 const SELLER_ID = "{{sellerId}}"; // replaced at runtime
 
 const ENDPOINTS: EndpointDef[] = [
-  // Product
+  // ── Product (Read) ──────────────────────────────────────────
   {
     id: "products-approved",
     name: "Products (Approved)",
-    description: "Fetch approved products with price, stock, barcode, and all product fields",
+    description: "Fetch approved products — v2 endpoint with full product fields",
     method: "GET",
     pathTemplate: `/integration/product/sellers/${SELLER_ID}/products/approved?page=0&size=5&supplierId=${SELLER_ID}`,
     category: "Product"
   },
   {
-    id: "products-legacy",
-    name: "Products (Legacy/All)",
-    description: "Fetch all products including unapproved",
+    id: "products-unapproved",
+    name: "Products (Unapproved)",
+    description: "Fetch products pending approval",
+    method: "GET",
+    pathTemplate: `/integration/product/sellers/${SELLER_ID}/products/unapproved?page=0&size=5`,
+    category: "Product"
+  },
+  {
+    id: "products-base",
+    name: "Products (Base / All)",
+    description: "Fetch base product list (approved + unapproved)",
     method: "GET",
     pathTemplate: `/integration/product/sellers/${SELLER_ID}/products?page=0&size=5&supplierId=${SELLER_ID}`,
     category: "Product"
@@ -55,16 +63,55 @@ const ENDPOINTS: EndpointDef[] = [
     body: { barcodes: ["{{barcode}}"], supplierId: "{{sellerIdNum}}" },
     category: "Product"
   },
+
+  // ── Product (Write / Mutation) ──────────────────────────────
   {
     id: "price-inventory",
     name: "Price & Inventory Update",
-    description: "Update product price and stock (POST, testing with empty items)",
+    description: "Update product price and stock (POST, empty items = safe test)",
     method: "POST",
     pathTemplate: `/integration/inventory/sellers/${SELLER_ID}/products/price-and-inventory`,
     body: { items: [] },
-    category: "Product"
+    category: "Product Mutations"
   },
-  // Catalog
+  {
+    id: "product-create-v2",
+    name: "Product Create (v2, dry run)",
+    description: "Create product endpoint — empty items array for safe testing",
+    method: "POST",
+    pathTemplate: `/integration/product/sellers/${SELLER_ID}/products`,
+    body: { items: [] },
+    category: "Product Mutations"
+  },
+  {
+    id: "product-update-approved",
+    name: "Update Approved Products (dry run)",
+    description: "Update approved product fields — empty items for safe testing",
+    method: "POST",
+    pathTemplate: `/integration/product/sellers/${SELLER_ID}/products/approved`,
+    body: { items: [] },
+    category: "Product Mutations"
+  },
+  {
+    id: "product-archive",
+    name: "Archive Product (dry run)",
+    description: "Archive products — empty items for safe testing",
+    method: "POST",
+    pathTemplate: `/integration/product/sellers/${SELLER_ID}/products/archive`,
+    body: { items: [] },
+    category: "Product Mutations"
+  },
+  {
+    id: "product-delete",
+    name: "Delete Product (dry run)",
+    description: "Delete products — empty items for safe testing",
+    method: "POST",
+    pathTemplate: `/integration/product/sellers/${SELLER_ID}/products/delete`,
+    body: { items: [] },
+    category: "Product Mutations"
+  },
+
+  // ── Catalog ─────────────────────────────────────────────────
   {
     id: "categories",
     name: "Category Tree",
@@ -74,20 +121,45 @@ const ENDPOINTS: EndpointDef[] = [
     category: "Catalog"
   },
   {
+    id: "category-attributes",
+    name: "Category Attributes",
+    description: "Get attributes for a specific category (using categoryId=1 as test)",
+    method: "GET",
+    pathTemplate: `/integration/product/product-categories/1/attributes`,
+    category: "Catalog"
+  },
+  {
     id: "brands",
     name: "Brands",
-    description: "Trendyol brand list",
+    description: "Trendyol brand list (paginated)",
     method: "GET",
     pathTemplate: `/integration/product/brands?page=0&size=5`,
     category: "Catalog"
   },
-  // Orders
+  {
+    id: "brands-byname",
+    name: "Brands by Name",
+    description: "Search brands by name",
+    method: "GET",
+    pathTemplate: `/integration/product/brands/by-name?name=test`,
+    category: "Catalog"
+  },
+
+  // ── Orders & Shipments ──────────────────────────────────────
   {
     id: "shipments",
     name: "Shipment Packages",
     description: "Get order shipment packages",
     method: "GET",
     pathTemplate: `/integration/order/sellers/${SELLER_ID}/shipment-packages?page=0&size=5`,
+    category: "Orders"
+  },
+  {
+    id: "shipments-status",
+    name: "Shipment Packages (by status)",
+    description: "Get shipment packages filtered by status",
+    method: "GET",
+    pathTemplate: `/integration/order/sellers/${SELLER_ID}/shipment-packages?page=0&size=5&status=Created`,
     category: "Orders"
   },
   {
@@ -98,7 +170,26 @@ const ENDPOINTS: EndpointDef[] = [
     pathTemplate: `/integration/order/sellers/${SELLER_ID}/claims?page=0&size=5`,
     category: "Orders"
   },
-  // Seller
+
+  // ── Returns (GULF Region) ──────────────────────────────────
+  {
+    id: "returns-gulf",
+    name: "Returns (GULF)",
+    description: "Get return requests — GULF/SA region endpoint",
+    method: "GET",
+    pathTemplate: `/integration/order/sellers/${SELLER_ID}/returns?page=0&size=5`,
+    category: "Returns (GULF)"
+  },
+  {
+    id: "return-claim-issues",
+    name: "Claim Issue Reasons",
+    description: "Get available claim issue reasons for returns",
+    method: "GET",
+    pathTemplate: `/integration/order/claim-issue-reasons`,
+    category: "Returns (GULF)"
+  },
+
+  // ── Seller / Account ────────────────────────────────────────
   {
     id: "addresses",
     name: "Supplier Addresses",
@@ -115,15 +206,36 @@ const ENDPOINTS: EndpointDef[] = [
     pathTemplate: `/integration/product/sellers/${SELLER_ID}/addresses`,
     category: "Seller"
   },
-  // Infrastructure
+
+  // ── Delivery / Cargo ────────────────────────────────────────
   {
     id: "cargo",
     name: "Cargo Companies",
     description: "Available cargo/shipping providers",
     method: "GET",
     pathTemplate: `/integration/order/cargo-companies`,
-    category: "Infrastructure"
+    category: "Delivery"
   },
+  {
+    id: "common-label",
+    name: "Common Label",
+    description: "Get common shipping label for a package (test with dummy ID)",
+    method: "GET",
+    pathTemplate: `/integration/order/sellers/${SELLER_ID}/shipment-packages/0/common-label`,
+    category: "Delivery"
+  },
+
+  // ── Accounting / Finance ────────────────────────────────────
+  {
+    id: "settlements",
+    name: "Settlements",
+    description: "Get settlement/accounting transaction list",
+    method: "GET",
+    pathTemplate: `/integration/finance/sellers/${SELLER_ID}/settlements?page=0&size=5`,
+    category: "Accounting"
+  },
+
+  // ── Infrastructure ──────────────────────────────────────────
   {
     id: "batch",
     name: "Batch Request Result",
@@ -138,6 +250,14 @@ const ENDPOINTS: EndpointDef[] = [
     description: "List registered webhooks",
     method: "GET",
     pathTemplate: `/integration/webhook/sellers/${SELLER_ID}`,
+    category: "Infrastructure"
+  },
+  {
+    id: "healthcheck",
+    name: "API Health Check",
+    description: "Check if Trendyol API gateway is reachable",
+    method: "GET",
+    pathTemplate: `/integration/product/sellers/${SELLER_ID}/products/approved?page=0&size=1`,
     category: "Infrastructure"
   }
 ];
@@ -383,7 +503,10 @@ export function ApiTestClient() {
 
                     <Badge variant="outline" className={cn(
                       "font-mono text-[10px] px-1.5",
-                      endpoint.method === "POST" ? "border-blue-500/40 text-blue-400" : "border-green-500/40 text-green-400"
+                      endpoint.method === "POST" ? "border-blue-500/40 text-blue-400"
+                        : endpoint.method === "PUT" ? "border-orange-500/40 text-orange-400"
+                        : endpoint.method === "DELETE" ? "border-red-500/40 text-red-400"
+                        : "border-green-500/40 text-green-400"
                     )}>
                       {endpoint.method}
                     </Badge>
