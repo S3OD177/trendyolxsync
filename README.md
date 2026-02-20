@@ -72,6 +72,7 @@ Open: `http://localhost:3000`
 - `SALLA_CLIENT_SECRET`
 - `SALLA_REDIRECT_URI` (for example: `http://localhost:3000/api/integrations/salla/oauth/callback`)
 - Optional `SALLA_COST_SOURCE=PRE_TAX` (or `COST_PRICE`)
+- OAuth access tokens are stored in runtime local storage (`/tmp/trendyolxsync`) for single-instance use.
 4. Set `APP_PIN` (4 digits, default `3698`)
 5. Set `CRON_SECRET`
 6. Run migration deploy and start app

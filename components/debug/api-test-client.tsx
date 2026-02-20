@@ -630,11 +630,11 @@ export function ApiTestClient() {
                           className="h-7 px-2"
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (config) {
-                              runSingleTest(endpoint, config.sellerId, config.barcode);
-                            }
+                            const sellerId = config?.sellerId ?? "";
+                            const barcode = config?.barcode ?? "";
+                            void runSingleTest(endpoint, sellerId, barcode);
                           }}
-                          disabled={!config && !runningAll}
+                          disabled={endpoint.target !== "local" && !config && !runningAll}
                         >
                           <Play className="h-3 w-3" />
                         </Button>
