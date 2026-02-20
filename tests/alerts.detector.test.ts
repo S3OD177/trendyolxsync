@@ -4,6 +4,7 @@ import type { EffectiveProductSettings } from "@/lib/pricing/types";
 
 const settings: EffectiveProductSettings = {
   costPrice: 40,
+  feePercent: 0.1,
   commissionRate: 0.1,
   serviceFeeType: "PERCENT",
   serviceFeeValue: 0.02,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
-import { breakEvenPrice } from "@/lib/pricing/calculator";
+import { enforcedFloorPrice } from "@/lib/pricing/calculator";
 import { getEffectiveSettingsForProduct } from "@/lib/pricing/effective-settings";
 
 export const dynamic = "force-dynamic";
@@ -26,10 +26,23 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 
   const effectiveSettings = await getEffectiveSettingsForProduct(product.id);
-  const breakEven = breakEvenPrice(effectiveSettings);
+  const minPrice = product.settings?.minPrice ? Number(product.settings.minPrice) : 0;
+  const breakEven = enforcedFloorPrice(effectiveSettings, minPrice);
+  const feeRate = product.settings?.commissionRate !== null && product.settings?.commissionRate !== undefined
+    ? Number(product.settings.commissionRate)
+    : null;
+  const feePercent = feeRate === null ? null : feeRate < 1 ? feeRate * 100 : feeRate;
 
   return NextResponse.json({
-    product,
+    product: {
+      ...product,
+      settings: product.settings
+        ? {
+            ...product.settings,
+            feePercent
+          }
+        : null
+    },
     effectiveSettings,
     breakEven,
     chart: product.snapshots.map((snapshot: (typeof product.snapshots)[number]) => ({

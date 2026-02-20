@@ -9,13 +9,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toaster";
 
 interface GlobalSettingsForm {
-  commissionRate: number;
-  serviceFeeType: "FIXED" | "PERCENT";
-  serviceFeeValue: number;
+  feePercent: number;
   shippingCost: number;
-  handlingCost: number;
-  vatRate: number;
-  vatMode: "INCLUSIVE" | "EXCLUSIVE";
   minProfitType: "SAR" | "PERCENT";
   minProfitValue: number;
   undercutStep: number;
@@ -62,14 +57,11 @@ export function SettingsClient() {
           throw new Error(data.error || "Failed to load settings");
         }
 
+        const feePercent = toNumber(data.settings.feePercent, toNumber(data.settings.commissionRate) * 100);
+
         setForm({
-          commissionRate: toNumber(data.settings.commissionRate),
-          serviceFeeType: data.settings.serviceFeeType,
-          serviceFeeValue: toNumber(data.settings.serviceFeeValue),
+          feePercent,
           shippingCost: toNumber(data.settings.shippingCost),
-          handlingCost: toNumber(data.settings.handlingCost),
-          vatRate: toNumber(data.settings.vatRate),
-          vatMode: data.settings.vatMode,
           minProfitType: data.settings.minProfitType,
           minProfitValue: toNumber(data.settings.minProfitValue),
           undercutStep: toNumber(data.settings.undercutStep),
@@ -138,7 +130,6 @@ export function SettingsClient() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
       <div>
         <h1 className="text-2xl font-semibold text-foreground">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">Manage integrations and global pricing defaults.</p>
@@ -148,9 +139,7 @@ export function SettingsClient() {
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div className="space-y-1">
             <CardTitle className="text-lg">Integration Status</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Validate credentials and API connections.
-            </p>
+            <p className="text-sm text-muted-foreground">Validate credentials and API connections.</p>
           </div>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2">
@@ -175,16 +164,17 @@ export function SettingsClient() {
         <CardContent>
           <form className="grid gap-4 md:grid-cols-2" onSubmit={submit}>
             <div>
-              <Label>Commission Rate (0-1)</Label>
+              <Label>Fees (%)</Label>
               <Input
                 type="number"
-                step="0.0001"
-                value={form.commissionRate}
+                step="0.01"
+                value={form.feePercent}
                 className="bg-background"
                 onChange={(event) =>
-                  setForm((current) => (current ? { ...current, commissionRate: Number(event.target.value) } : current))
+                  setForm((current) => (current ? { ...current, feePercent: Number(event.target.value) } : current))
                 }
               />
+              <p className="mt-1 text-xs text-muted-foreground">Accepts 0.15 or 15 format.</p>
             </div>
 
             <div>
@@ -201,20 +191,7 @@ export function SettingsClient() {
             </div>
 
             <div>
-              <Label>VAT Rate (%)</Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={form.vatRate}
-                className="bg-background"
-                onChange={(event) =>
-                  setForm((current) => (current ? { ...current, vatRate: Number(event.target.value) } : current))
-                }
-              />
-            </div>
-
-            <div>
-              <Label>Min Profit (SAR)</Label>
+              <Label>Min Profit (SAR or %)</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -224,6 +201,10 @@ export function SettingsClient() {
                   setForm((current) => (current ? { ...current, minProfitValue: Number(event.target.value) } : current))
                 }
               />
+            </div>
+
+            <div className="rounded-md border border-border/50 bg-muted/20 px-3 py-2.5 text-sm text-muted-foreground">
+              VAT is fixed at <span className="font-medium text-foreground">15%</span> and auto-added on cost.
             </div>
 
             <div className="md:col-span-2 pt-4">

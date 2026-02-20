@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
-import { breakEvenPrice, computeFees } from "@/lib/pricing/calculator";
+import { computeFees, enforcedFloorPrice } from "@/lib/pricing/calculator";
 import { getEffectiveSettingsForProduct } from "@/lib/pricing/effective-settings";
 import { suggestedPrice } from "@/lib/pricing/suggested-price";
 import { refreshSnapshotForProduct } from "@/lib/jobs/poll-products";
@@ -14,8 +14,7 @@ const bodySchema = z
   .object({
     productId: z.string().min(1),
     method: z.enum(["SUGGESTED", "CUSTOM"]),
-    customPrice: z.number().positive().optional(),
-    confirmLoss: z.boolean().optional().default(false)
+    customPrice: z.number().positive().optional()
   })
   .superRefine((data, ctx) => {
     if (data.method === "CUSTOM" && !data.customPrice) {
@@ -35,11 +34,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { productId, method, customPrice, confirmLoss } = parsed.data;
+  const { productId, method, customPrice } = parsed.data;
 
   const product = await prisma.product.findUnique({
     where: { id: productId },
     include: {
+      settings: true,
       snapshots: {
         orderBy: { checkedAt: "desc" },
         take: 1
@@ -66,12 +66,23 @@ export async function POST(request: NextRequest) {
       : null;
 
   const settings = await getEffectiveSettingsForProduct(product.id);
-  const breakEven = breakEvenPrice(settings);
+  if (!Number.isFinite(settings.costPrice) || settings.costPrice <= 0) {
+    return NextResponse.json(
+      {
+        error: `Cannot update price for ${product.sku}: set Cost Price first in product settings.`
+      },
+      { status: 400 }
+    );
+  }
+
+  const minPrice = product.settings?.minPrice ? Number(product.settings.minPrice) : 0;
+  const enforcedFloor = enforcedFloorPrice(settings, minPrice);
 
   const computedSuggestion = suggestedPrice({
     competitorMin,
     ourPrice,
     settings,
+    minPrice,
     lastDownwardChangeAt: product.priceChanges[0]?.createdAt ?? null,
     bypassCooldown: true
   });
@@ -83,17 +94,16 @@ export async function POST(request: NextRequest) {
   }
 
   const feeResult = computeFees(priceToApply, settings);
-  const lossRisk = priceToApply < breakEven || feeResult.profitSar < 0;
-
-  if (lossRisk && !confirmLoss) {
+  const lossRisk = priceToApply < enforcedFloor || feeResult.profitSar < 0;
+  if (lossRisk) {
     return NextResponse.json(
       {
-        error: "Price may cause loss",
-        requiresConfirm: true,
-        breakEvenPrice: breakEven,
+        error: "Price is below enforced no-loss floor",
+        enforcedFloor,
+        attemptedPrice: priceToApply,
         projectedProfit: feeResult.profitSar
       },
-      { status: 409 }
+      { status: 422 }
     );
   }
 
@@ -120,7 +130,7 @@ export async function POST(request: NextRequest) {
     ok: true,
     appliedPrice: priceToApply,
     method,
-    breakEvenPrice: breakEven,
+    enforcedFloor,
     projectedProfit: feeResult.profitSar,
     snapshot
   });

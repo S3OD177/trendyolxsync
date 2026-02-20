@@ -1,9 +1,7 @@
 import type {
   GlobalSettings,
   MinProfitType,
-  ProductSettings,
-  ServiceFeeType,
-  VatMode
+  ProductSettings
 } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { EffectiveProductSettings } from "@/lib/pricing/types";
@@ -15,16 +13,22 @@ export function mergeSettings(
   globalSettings: GlobalSettings,
   productSettings: ProductSettings
 ): EffectiveProductSettings {
+  const feePercent = decimalToNumber(
+    productSettings.commissionRate,
+    decimalToNumber(globalSettings.commissionRate)
+  );
+
   return {
     costPrice: decimalToNumber(productSettings.costPrice),
-    commissionRate: decimalToNumber(productSettings.commissionRate, decimalToNumber(globalSettings.commissionRate)),
-    serviceFeeType:
-      (productSettings.serviceFeeType as ServiceFeeType | null) ?? globalSettings.serviceFeeType,
-    serviceFeeValue: decimalToNumber(productSettings.serviceFeeValue, decimalToNumber(globalSettings.serviceFeeValue)),
-    shippingCost: decimalToNumber(productSettings.shippingCost, decimalToNumber(globalSettings.shippingCost)),
-    handlingCost: decimalToNumber(productSettings.handlingCost, decimalToNumber(globalSettings.handlingCost)),
-    vatRate: decimalToNumber(productSettings.vatRate, decimalToNumber(globalSettings.vatRate)),
-    vatMode: (productSettings.vatMode as VatMode | null) ?? globalSettings.vatMode,
+    feePercent,
+    commissionRate: feePercent,
+    serviceFeeType: "PERCENT",
+    serviceFeeValue: 0,
+    // Shipping is intentionally global-only to avoid per-product bypass of the floor formula.
+    shippingCost: decimalToNumber(globalSettings.shippingCost),
+    handlingCost: 0,
+    vatRate: 15,
+    vatMode: "INCLUSIVE",
     minProfitType:
       (productSettings.minProfitType as MinProfitType | null) ?? globalSettings.minProfitType,
     minProfitValue: decimalToNumber(productSettings.minProfitValue, decimalToNumber(globalSettings.minProfitValue)),

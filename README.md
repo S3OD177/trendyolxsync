@@ -9,7 +9,7 @@ Core capabilities:
 - Detect alerts (BuyBox loss, undercut, competitor drops, price-war risk)
 - Send in-app alerts only
 - Compute safe suggested prices with break-even protection
-- One-click suggested apply and custom updates with loss confirmation guard
+- One-click suggested apply and custom updates with hard no-loss floor enforcement
 - Currency locked to **SAR (Saudi Riyal)**
 
 ## Stack
@@ -65,9 +65,14 @@ Open: `http://localhost:3000`
 - `TRENDYOL_API_SECRET`
 - Optional `TRENDYOL_USER_AGENT`
 - `TRENDYOL_STOREFRONT_CODE=SA` (Saudi storefront)
-3. Set `APP_PIN` (4 digits, default `3698`)
-4. Set `CRON_SECRET`
-5. Run migration deploy and start app
+3. Optional Salla read-only integration credentials:
+- `SALLA_CLIENT_ID`
+- `SALLA_CLIENT_SECRET`
+- `SALLA_REDIRECT_URI`
+- Optional `SALLA_COST_SOURCE=PRE_TAX` (or `COST_PRICE`)
+4. Set `APP_PIN` (4 digits, default `3698`)
+5. Set `CRON_SECRET`
+6. Run migration deploy and start app
 
 ## Cron trigger (every 5 minutes)
 Endpoint:
@@ -111,6 +116,11 @@ Reference guide:
 - `GET/POST /api/settings`
 - `GET/PATCH /api/products/[id]/settings`
 - `GET /api/products/[id]/details`
+- `GET /api/integrations/salla/status`
+- `GET /api/integrations/salla/oauth/start`
+- `GET /api/integrations/salla/oauth/callback`
+- `POST /api/integrations/salla/match`
+- `POST /api/integrations/salla/sync`
 
 ## Testing
 Unit tests cover:

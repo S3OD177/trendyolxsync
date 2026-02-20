@@ -34,6 +34,7 @@ enum AlertType {
   NOT_COMPETITIVE
   SAFE_REPRICE
   PRICE_WAR
+  MISSING_PRODUCT_DATA
 }
 
 enum AlertSeverity {
@@ -66,13 +67,24 @@ model Product {
   category          String?
   active            Boolean          @default(true)
   currency          String           @default("SAR")
+  sallaProductId    String?
+  sallaSku          String?
+  sallaName         String?
+  sallaQuantity     Int?
+  sallaPreTaxPrice  Decimal?
+  sallaCostPrice    Decimal?
+  sallaMatchMethod  String?
+  sallaMatchScore   Decimal?
+  sallaLastSyncedAt DateTime?
+  sallaRawPayload   Json?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
-  settings     ProductSettings?
-  snapshots    PriceSnapshot[]
-  alerts       Alert[]
-  priceChanges PriceChangeLog[]
+  settings       ProductSettings?
+  snapshots      PriceSnapshot[]
+  alerts         Alert[]
+  priceChanges   PriceChangeLog[]
+  competitorLogs CompetitorLog[]
 
   @@index([barcode])
 }
@@ -116,10 +128,39 @@ model ProductSettings {
   alertThresholdPct Decimal?
   cooldownMinutes   Int?
   competitorDropPct Decimal?
+
+  // Auto-Pilot Fields
+  autoPilot         Boolean           @default(false)
+  minPrice          Decimal?
+  strategy          AutoPilotStrategy @default(MATCH)
+
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+enum AutoPilotStrategy {
+  MATCH
+  BEAT_BY_1
+  BEAT_BY_5
+}
+
+
+
+model CompetitorLog {
+  id             String   @id @default(cuid())
+  productId      String
+  competitorName String
+  price          Decimal
+  isBuyBoxWinner Boolean  @default(false)
+  checkedAt      DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, checkedAt])
+  @@index([competitorName])
+  @@map("competitor_logs")
 }
 
 model PriceSnapshot {
@@ -169,6 +210,21 @@ model PriceChangeLog {
   @@index([productId, createdAt])
 }
 
+model SallaCredential {
+  id                  String   @id @default(cuid())
+  key                 String   @unique @default("default")
+  merchantId          String?
+  accessTokenEncoded  String
+  refreshTokenEncoded String?
+  tokenType           String?
+  scope               String?
+  expiresAt           DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("salla_credentials")
+}
+
 model JobLock {
   id          String   @id @default(cuid())
   name        String   @unique
@@ -201,4 +257,92 @@ model ShipmentPackage {
   @@index([lastModifiedAt(sort: Desc)])
   @@index([syncedAt(sort: Desc)])
   @@map("shipment_packages")
+}
+
+model Order {
+  id                 String      @id @default(cuid())
+  orderNumber        String      @unique
+  sellerId           BigInt
+  status             String      // Created, Picking, Shipped, Cancelled, Delivered, Returned, etc.
+  totalPrice         Decimal
+  currency           String      @default("SAR")
+  customerFirstName  String?
+  customerLastName   String?
+  customerEmail      String?
+  tcIdentityNumber   String?
+  
+  createdDate        DateTime
+  estimatedDeliveryStart DateTime?
+  estimatedDeliveryEnd   DateTime?
+  
+  items              OrderItem[]
+  shipmentPackageId  String?
+  
+  updatedAt          DateTime    @updatedAt
+  
+  @@index([status])
+  @@index([sellerId])
+  @@index([createdDate(sort: Desc)])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                 String   @id @default(cuid())
+  orderId            String
+  
+  productName        String
+  sku                String
+  barcode            String?
+  
+  quantity           Int
+  price              Decimal
+  vatBaseAmount      Decimal?
+  merchantSku        String?
+  
+  currency           String   @default("SAR")
+  
+  // Relations
+  order              Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  @@index([orderId])
+  @@index([sku])
+  @@map("order_items")
+}
+
+model ReturnRequest {
+  id              String   @id @default(cuid())
+  claimId         String   @unique
+  
+  orderNumber     String?
+  
+  dateTime        DateTime
+  reason          String
+  status          String   // Created, Approved, Rejected being processed
+  returnStatus    String?  // Actual return shipment status
+  
+  customerFirstName String?
+  customerLastName  String?
+  
+  items           ReturnItem[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([status])
+  @@index([orderNumber])
+  @@map("return_requests")
+}
+
+model ReturnItem {
+  id              String        @id @default(cuid())
+  returnRequestId String
+  
+  sku             String
+  quantity        Int
+  reason          String?
+  
+  returnRequest   ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+  
+  @@index([returnRequestId])
+  @@map("return_items")
 }

@@ -4,6 +4,7 @@ import type { EffectiveProductSettings } from "@/lib/pricing/types";
 
 const settings: EffectiveProductSettings = {
   costPrice: 40,
+  feePercent: 0.1,
   commissionRate: 0.1,
   serviceFeeType: "PERCENT",
   serviceFeeValue: 0.02,
@@ -43,5 +44,11 @@ describe("suggestedPrice", () => {
 
     expect(result.reason).toBe("COOLDOWN_ACTIVE");
     expect(result.suggested).toBe(100);
+  });
+
+  it("never suggests below minPrice-enforced floor", () => {
+    const result = suggestedPrice({ competitorMin: 10, ourPrice: 60, settings, minPrice: 80 });
+    expect(result.suggested).toBe(80);
+    expect(result.floor).toBe(80);
   });
 });

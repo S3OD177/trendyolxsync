@@ -210,10 +210,12 @@ export class TrendyolClient {
     return this.pickNumber(source, [
       "quantity",
       "stock",
+      "stock.quantity",
       "stockQuantity",
       "availableStock",
       "availableQuantity",
       "inventory",
+      "inventory.quantity",
       "stockCount",
       "onHandQuantity"
     ]);
@@ -290,7 +292,7 @@ export class TrendyolClient {
     return [];
   }
 
-  private parseBuyboxEntry(entry: any): TrendyolCompetitorData {
+  public parseBuyboxEntry(entry: any): TrendyolCompetitorData {
     const competitorMinPrice =
       this.pickNumber(entry, ["buyboxPrice", "buyboxPrice.value", "price", "lowestPrice", "minimumPrice"]) ??
       this.extractPrice(entry);
@@ -438,13 +440,16 @@ export class TrendyolClient {
     let list: any[] = [];
 
     try {
-      const approved = await this.fetchProductPayload(approvedPath);
-      raw = approved.response;
-      list = approved.list;
-    } catch {
+      // Use "All Products" endpoint first to ensure we get everything (Active + Inactive)
+      // Then we filter in sync-catalog.ts
       const legacy = await this.fetchProductPayload(legacyPath);
       raw = legacy.response;
       list = legacy.list;
+    } catch {
+      // Fallback to approved if legacy fails
+      const approved = await this.fetchProductPayload(approvedPath);
+      raw = approved.response;
+      list = approved.list;
     }
 
     if (!list.length && page === 0) {
@@ -664,7 +669,36 @@ export class TrendyolClient {
     if (options.orderByDirection) params.set("orderByDirection", options.orderByDirection);
 
     const qs = params.toString();
-    const url = `/integration/order/sellers/${this.sellerId}/shipment-packages?${qs}`;
+    // Use /orders instead of /shipment-packages as it seems to be the one authorized for this seller
+    const url = `/integration/order/sellers/${this.sellerId}/orders?${qs}`;
+
+    const response = await this.request<any>(url);
+
+    return {
+      content: Array.isArray(response.content) ? response.content : [],
+      totalPages: typeof response.totalPages === "number" ? response.totalPages : 0
+    };
+  }
+
+  async fetchClaims(
+    options: {
+      page?: number;
+      size?: number;
+      startDate?: number;
+      endDate?: number;
+      status?: string;
+    }
+  ) {
+    const params = new URLSearchParams();
+    params.set("page", String(options.page ?? 0));
+    params.set("size", String(options.size ?? 50));
+    if (options.startDate) params.set("startDate", String(options.startDate));
+    if (options.endDate) params.set("endDate", String(options.endDate));
+    if (options.status) params.set("claimStatus", options.status);
+
+    const qs = params.toString();
+    // Endpoint: /integration/claim/sellers/{sellerId}/claims
+    const url = `/integration/claim/sellers/${this.sellerId}/claims?${qs}`;
 
     const response = await this.request<any>(url);
 

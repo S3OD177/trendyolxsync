@@ -1,4 +1,5 @@
 export const roundMoney = (value: number) => Math.max(0, Math.round(value * 100) / 100);
+export const ceilMoney = (value: number) => Math.max(0, Math.ceil(value * 100) / 100);
 
 export const formatSar = (value: number | null | undefined) => {
   if (value === null || value === undefined || Number.isNaN(value)) {

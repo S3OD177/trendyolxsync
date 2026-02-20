@@ -35,6 +35,16 @@ const envSchema = z.object({
   TRENDYOL_USER_AGENT: z.string().optional(),
   TRENDYOL_STOREFRONT_CODE: z.string().default("SA"),
 
+  SALLA_BASE_URL: z.string().url().default("https://api.salla.dev/admin/v2"),
+  SALLA_OAUTH_BASE_URL: z.string().url().default("https://accounts.salla.sa"),
+  SALLA_CLIENT_ID: z.string().optional(),
+  SALLA_CLIENT_SECRET: z.string().optional(),
+  SALLA_REDIRECT_URI: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    z.string().url().optional()
+  ),
+  SALLA_COST_SOURCE: z.enum(["PRE_TAX", "COST_PRICE"]).default("PRE_TAX"),
+
   DEFAULT_VAT_RATE: z
     .string()
     .optional()

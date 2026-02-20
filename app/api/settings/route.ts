@@ -5,25 +5,37 @@ import { prisma } from "@/lib/db/prisma";
 import { formatApiError, isDatabaseUnavailableError } from "@/lib/db/errors";
 import { NO_STORE_HEADERS } from "@/lib/http/no-store";
 import { getOrCreateGlobalSettings } from "@/lib/pricing/effective-settings";
+import { normalizeFeeRate } from "@/lib/pricing/calculator";
 
 export const dynamic = "force-dynamic";
 
-const updateSchema = z.object({
-  commissionRate: z.number().min(0).max(1),
-  serviceFeeType: z.enum(["FIXED", "PERCENT"]),
-  serviceFeeValue: z.number().min(0),
-  shippingCost: z.number().min(0),
-  handlingCost: z.number().min(0),
-  vatRate: z.number().min(0).max(100),
-  vatMode: z.enum(["INCLUSIVE", "EXCLUSIVE"]),
-  minProfitType: z.enum(["SAR", "PERCENT"]),
-  minProfitValue: z.number().min(0),
-  undercutStep: z.number().min(0),
-  alertThresholdSar: z.number().min(0),
-  alertThresholdPct: z.number().min(0),
-  cooldownMinutes: z.number().int().min(1),
-  competitorDropPct: z.number().min(0)
-});
+const updateSchema = z
+  .object({
+    feePercent: z.number().min(0).optional(),
+    commissionRate: z.number().min(0).optional(),
+    serviceFeeType: z.enum(["FIXED", "PERCENT"]).optional(),
+    serviceFeeValue: z.number().min(0).optional(),
+    shippingCost: z.number().min(0),
+    handlingCost: z.number().min(0).optional(),
+    vatRate: z.number().min(0).max(100).optional(),
+    vatMode: z.enum(["INCLUSIVE", "EXCLUSIVE"]).optional(),
+    minProfitType: z.enum(["SAR", "PERCENT"]),
+    minProfitValue: z.number().min(0),
+    undercutStep: z.number().min(0),
+    alertThresholdSar: z.number().min(0),
+    alertThresholdPct: z.number().min(0),
+    cooldownMinutes: z.number().int().min(1),
+    competitorDropPct: z.number().min(0)
+  })
+  .superRefine((data, ctx) => {
+    if (data.feePercent === undefined && data.commissionRate === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["feePercent"],
+        message: "feePercent (or commissionRate) is required"
+      });
+    }
+  });
 
 function integrationStatus() {
   return {
@@ -39,10 +51,27 @@ function toErrorMessage(error: unknown) {
   return formatApiError(error, "Failed to load settings");
 }
 
+function toFeePercentValue(rate: unknown) {
+  const value = Number(rate ?? 0);
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return value < 1 ? value * 100 : value;
+}
+
+function decorateSettingsWithFeePercent<T extends Record<string, unknown>>(settings: T) {
+  return {
+    ...settings,
+    feePercent: toFeePercentValue(settings.commissionRate)
+  };
+}
+
 function fallbackSettings() {
   return {
     currency: "SAR",
     commissionRate: 0.15,
+    feePercent: 15,
     serviceFeeType: "PERCENT",
     serviceFeeValue: 0,
     shippingCost: 0,
@@ -62,7 +91,10 @@ function fallbackSettings() {
 export async function GET() {
   try {
     const settings = await getOrCreateGlobalSettings();
-    return NextResponse.json({ settings, integrations: integrationStatus() }, { headers: NO_STORE_HEADERS });
+    return NextResponse.json(
+      { settings: decorateSettingsWithFeePercent(settings as unknown as Record<string, unknown>), integrations: integrationStatus() },
+      { headers: NO_STORE_HEADERS }
+    );
   } catch (error) {
     if (isDatabaseUnavailableError(error)) {
       return NextResponse.json(
@@ -92,15 +124,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const feeInput = parsed.data.feePercent ?? parsed.data.commissionRate ?? 0;
+    let normalizedFeeRate: number;
+
+    try {
+      normalizedFeeRate = normalizeFeeRate(feeInput);
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Invalid fee percent. Use decimal (0.15) or percent points (15)."
+        },
+        { status: 400, headers: NO_STORE_HEADERS }
+      );
+    }
+
     const current = await getOrCreateGlobalSettings();
 
     const settings = await prisma.globalSettings.update({
       where: { id: current.id },
-      data: parsed.data
+      data: {
+        commissionRate: normalizedFeeRate,
+        serviceFeeType: "PERCENT",
+        serviceFeeValue: 0,
+        shippingCost: parsed.data.shippingCost,
+        handlingCost: 0,
+        vatRate: 15,
+        vatMode: "INCLUSIVE",
+        minProfitType: parsed.data.minProfitType,
+        minProfitValue: parsed.data.minProfitValue,
+        undercutStep: parsed.data.undercutStep,
+        alertThresholdSar: parsed.data.alertThresholdSar,
+        alertThresholdPct: parsed.data.alertThresholdPct,
+        cooldownMinutes: parsed.data.cooldownMinutes,
+        competitorDropPct: parsed.data.competitorDropPct
+      }
     });
 
     return NextResponse.json(
-      { ok: true, settings, integrations: integrationStatus() },
+      {
+        ok: true,
+        settings: decorateSettingsWithFeePercent(settings as unknown as Record<string, unknown>),
+        integrations: integrationStatus()
+      },
       { headers: NO_STORE_HEADERS }
     );
   } catch (error) {

@@ -53,7 +53,38 @@ export async function syncCatalogFromTrendyol(
       break;
     }
 
+    const barcodes = result.items
+      .map((i) => i.barcode)
+      .filter((b): b is string => typeof b === "string" && b.length > 0);
+
+    let buyboxMap = new Map<string, any>();
+    if (barcodes.length > 0) {
+      // Chunk into groups of 10 (Trendyol limit)
+      const chunkSize = 10;
+      for (let i = 0; i < barcodes.length; i += chunkSize) {
+        const chunk = barcodes.slice(i, i + chunkSize);
+        try {
+          const { entries } = await trendyolClient.fetchBuyboxInformation(chunk);
+          for (const entry of entries) {
+            if (typeof entry?.barcode === 'string') {
+              buyboxMap.set(entry.barcode, trendyolClient.parseBuyboxEntry(entry));
+            } else if (typeof entry?.stockCode === 'string') {
+              buyboxMap.set(entry.stockCode, trendyolClient.parseBuyboxEntry(entry));
+            }
+          }
+          // Small sleep to be gentle
+          await new Promise(r => setTimeout(r, 100));
+        } catch (error) {
+          console.warn(`Failed to batch fetch buybox info for chunk ${i}-${i + chunkSize}:`, error);
+        }
+      }
+    }
+
     for (const item of result.items) {
+      if ((item.stock ?? 0) <= 0) {
+        continue;
+      }
+
       if (itemsBySku) {
         itemsBySku.set(item.sku, item);
       }
@@ -85,59 +116,37 @@ export async function syncCatalogFromTrendyol(
       });
 
       if (createInitialSnapshots) {
-        let snapshotPrice = item.ourPrice ?? null;
-        let snapshotRaw: unknown = {
-          source: "catalog_sync",
-          item: item.raw ?? item
-        };
+        // Use the price/stock directly from the "approved" list item.
+        // This avoids N+1 calls to fetchPriceAndStock.
+        const snapshotPrice = item.ourPrice ?? null;
 
-        const needsHydration = snapshotPrice === null && hydratePrices && hydrationAttempts < hydrateLimit;
+        // We only create a snapshot if we have a price OR if we want to record "no price" state.
+        // Assuming we want to track it even if null (to show as disabled/out of stock).
 
-        if (needsHydration) {
-          hydrationAttempts += 1;
+        let competitorMinPrice: number | null = null;
+        let competitorCount: number | null = null;
+        let buyboxStatus: "WIN" | "LOSE" | "UNKNOWN" = "UNKNOWN";
+        let buyboxSellerId: string | null = null;
+        let competitorRaw: any = null;
 
-          try {
-            const live = await trendyolClient.fetchPriceAndStock({
-              sku: savedProduct.sku,
-              barcode: savedProduct.barcode ?? undefined,
-              productId: savedProduct.trendyolProductId ?? undefined
-            });
-
-            snapshotPrice = live.ourPrice ?? snapshotPrice;
-            snapshotRaw = {
-              source: "catalog_sync_with_live_lookup",
-              catalog: item.raw ?? item,
-              live: live.raw
-            };
-
-            if (snapshotPrice !== null) {
-              hydratedSnapshots += 1;
-            }
-          } catch {
-            hydrationErrors += 1;
-          }
+        if (item.barcode && buyboxMap.has(item.barcode)) {
+          const entry = buyboxMap.get(item.barcode);
+          competitorMinPrice = entry.competitorMinPrice;
+          competitorCount = entry.competitorCount;
+          buyboxStatus = entry.buyboxStatus;
+          buyboxSellerId = entry.buyboxSellerId;
+          competitorRaw = entry.raw;
+        } else if (item.sku && buyboxMap.has(item.sku)) {
+          const entry = buyboxMap.get(item.sku);
+          competitorMinPrice = entry.competitorMinPrice;
+          competitorCount = entry.competitorCount;
+          buyboxStatus = entry.buyboxStatus;
+          buyboxSellerId = entry.buyboxSellerId;
+          competitorRaw = entry.raw;
         }
 
-        if (snapshotPrice !== null) {
-          let competitorMinPrice: number | null = null;
-          let competitorCount: number | null = null;
-          let buyboxStatus: "WIN" | "LOSE" | "UNKNOWN" = "UNKNOWN";
-          let buyboxSellerId: string | null = null;
-
-          try {
-            const competitor = await trendyolClient.fetchCompetitorPrices({
-              sku: savedProduct.sku,
-              barcode: savedProduct.barcode ?? undefined,
-              productId: savedProduct.trendyolProductId ?? undefined
-            });
-            competitorMinPrice = competitor.competitorMinPrice;
-            competitorCount = competitor.competitorCount;
-            buyboxSellerId = competitor.buyboxSellerId;
-            buyboxStatus = competitor.buyboxStatus;
-          } catch {
-            // Best-effort buybox fetch during sync
-          }
-
+        // Only create snapshot if we have data to record (price or buybox)
+        if (snapshotPrice !== null || buyboxStatus !== "UNKNOWN") {
           await prisma.priceSnapshot.create({
             data: {
               productId: savedProduct.id,
@@ -146,9 +155,14 @@ export async function syncCatalogFromTrendyol(
               competitorCount,
               buyboxStatus,
               buyboxSellerId,
-              rawPayloadJson: snapshotRaw as Prisma.InputJsonValue
+              rawPayloadJson: {
+                source: "catalog_sync_batched",
+                catalog: item.raw ?? item,
+                competitor: competitorRaw
+              } as Prisma.InputJsonValue
             }
           });
+          hydratedSnapshots += 1;
         }
       }
 

@@ -1,10 +1,10 @@
-import { breakEvenPrice } from "@/lib/pricing/calculator";
+import { enforcedFloorPrice } from "@/lib/pricing/calculator";
 import type { SuggestedPriceArgs, SuggestedPriceResult } from "@/lib/pricing/types";
 import { roundMoney } from "@/lib/utils/money";
 
 export function suggestedPrice(args: SuggestedPriceArgs): SuggestedPriceResult {
-  const { competitorMin, settings, lastDownwardChangeAt, now = new Date(), bypassCooldown } = args;
-  const floor = breakEvenPrice(settings);
+  const { competitorMin, settings, minPrice, lastDownwardChangeAt, now = new Date(), bypassCooldown } = args;
+  const floor = enforcedFloorPrice(settings, minPrice ?? 0);
 
   if (!Number.isFinite(floor)) {
     return {

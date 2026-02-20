@@ -1,6 +1,6 @@
 import type { BuyBoxStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { breakEvenPrice, computeFees } from "@/lib/pricing/calculator";
+import { enforcedFloorPrice, computeFees } from "@/lib/pricing/calculator";
 import { getEffectiveSettingsForProduct } from "@/lib/pricing/effective-settings";
 import { suggestedPrice } from "@/lib/pricing/suggested-price";
 
@@ -21,6 +21,7 @@ export interface DashboardRowDTO {
   breakEvenPrice: number;
   lowMarginRisk: boolean;
   lastCheckedAt: string | null;
+  noDataReason?: string | null;
 }
 
 const toNumber = (value: unknown) => (value === null || value === undefined ? null : Number(value));
@@ -29,6 +30,7 @@ export async function buildDashboardRows() {
   let products = await prisma.product.findMany({
     where: { active: true },
     include: {
+      settings: true,
       snapshots: {
         orderBy: { checkedAt: "desc" },
         take: 1
@@ -44,6 +46,7 @@ export async function buildDashboardRows() {
   if (!products.length) {
     products = await prisma.product.findMany({
       include: {
+        settings: true,
         snapshots: {
           orderBy: { checkedAt: "desc" },
           take: 1
@@ -62,7 +65,8 @@ export async function buildDashboardRows() {
   for (const product of products) {
     const latestSnapshot = product.snapshots[0];
     const settings = await getEffectiveSettingsForProduct(product.id);
-    const breakEven = breakEvenPrice(settings);
+    const minPrice = product.settings?.minPrice ? Number(product.settings.minPrice) : 0;
+    const breakEven = enforcedFloorPrice(settings, minPrice);
 
     const lastDownwardChange =
       product.priceChanges.find((item) => item.oldPrice !== null && Number(item.newPrice) < Number(item.oldPrice)) ??
@@ -84,8 +88,22 @@ export async function buildDashboardRows() {
       competitorMin: competitorMinPrice,
       ourPrice,
       settings,
+      minPrice,
       lastDownwardChangeAt: lastDownwardChange?.createdAt ?? null
     });
+
+    let noDataReason: string | null = null;
+    if ((latestSnapshot?.buyboxStatus ?? "UNKNOWN") === "UNKNOWN") {
+      if (!latestSnapshot) {
+        noDataReason = "Pending Sync";
+      } else if (ourPrice === null) {
+        noDataReason = "Missing Price";
+      } else if (!competitorMinPrice) {
+        noDataReason = "No Competitor Data";
+      } else {
+        noDataReason = "Unknown Status";
+      }
+    }
 
     rows.push({
       productId: product.id,
@@ -98,6 +116,7 @@ export async function buildDashboardRows() {
       deltaSar,
       deltaPct,
       buyboxStatus: latestSnapshot?.buyboxStatus ?? "UNKNOWN",
+      noDataReason,
       suggestedPrice: suggestion.suggested,
       marginSar: pricing?.profitSar ?? null,
       marginPct: pricing?.profitPct ?? null,

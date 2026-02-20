@@ -1,8 +1,9 @@
-import type { Prisma, PriceChangeMethod, Product } from "@prisma/client";
+import type { AlertType, Prisma, PriceChangeMethod, Product } from "@prisma/client";
 import { detectAlerts } from "@/lib/alerts/detector";
+import { buildMissingProductDataMessage, detectMissingProductFields } from "@/lib/alerts/missing-product-data";
 import { env } from "@/lib/config/env";
 import { prisma } from "@/lib/db/prisma";
-import { breakEvenPrice } from "@/lib/pricing/calculator";
+import { enforcedFloorPrice } from "@/lib/pricing/calculator";
 import { getEffectiveSettingsForProduct, getOrCreateGlobalSettings } from "@/lib/pricing/effective-settings";
 import { suggestedPrice } from "@/lib/pricing/suggested-price";
 import { trendyolClient } from "@/lib/trendyol/client";
@@ -42,12 +43,12 @@ async function lastDownwardChangeAt(productId: string) {
   return null;
 }
 
-async function shouldCreateAlert(productId: string, type: string, dedupeMinutes = 15) {
+async function shouldCreateAlert(productId: string, type: AlertType, dedupeMinutes = 15) {
   const since = new Date(Date.now() - dedupeMinutes * 60 * 1000);
   const recent = await prisma.alert.findFirst({
     where: {
       productId,
-      type: type as any,
+      type,
       createdAt: {
         gte: since
       }
@@ -191,7 +192,10 @@ export async function runPoll(): Promise<PollRunSummary> {
     }
   }
 
-  const products = await prisma.product.findMany({ where: { active: true } });
+  const products = await prisma.product.findMany({
+    where: { active: true },
+    include: { settings: true }
+  });
 
   if (!products.length) {
     return {
@@ -213,78 +217,118 @@ export async function runPoll(): Promise<PollRunSummary> {
   let skipped = 0;
   const errors: Array<{ sku: string; message: string }> = [];
 
-  for (const product of products) {
-    try {
-      const [previousSnapshot, lastDecreaseAt, effectiveSettings] = await Promise.all([
-        prisma.priceSnapshot.findFirst({
-          where: { productId: product.id },
-          orderBy: { checkedAt: "desc" }
-        }),
-        lastDownwardChangeAt(product.id),
-        getEffectiveSettingsForProduct(product.id)
-      ]);
+  // Process in batches to improve speed but respect rate limits
+  const BATCH_SIZE = 10;
+  for (let i = 0; i < products.length; i += BATCH_SIZE) {
+    const batch = products.slice(i, i + BATCH_SIZE);
+    await Promise.all(
+      batch.map(async (product) => {
+        try {
+          const [previousSnapshot, lastDecreaseAt, effectiveSettings] = await Promise.all([
+            prisma.priceSnapshot.findFirst({
+              where: { productId: product.id },
+              orderBy: { checkedAt: "desc" }
+            }),
+            lastDownwardChangeAt(product.id),
+            getEffectiveSettingsForProduct(product.id)
+          ]);
 
-      const catalogMatch =
-        catalogLookup.get(product.sku) ??
-        (product.barcode ? catalogLookup.get(product.barcode) : undefined) ??
-        (product.trendyolProductId ? catalogLookup.get(product.trendyolProductId) : undefined);
+          const missingFields = detectMissingProductFields({
+            sku: product.sku,
+            title: product.title,
+            costPrice: effectiveSettings.costPrice
+          });
+          if (missingFields.length > 0) {
+            const shouldCreateMissingDataAlert = await shouldCreateAlert(
+              product.id,
+              "MISSING_PRODUCT_DATA",
+              60 * 12
+            );
 
-      const snapshot = await refreshSnapshotForProduct(product, catalogMatch);
-
-      const ourPrice = snapshot.ourPrice !== null ? Number(snapshot.ourPrice) : null;
-      const competitorMin =
-        snapshot.competitorMinPrice !== null ? Number(snapshot.competitorMinPrice) : null;
-
-      const suggestion = suggestedPrice({
-        competitorMin,
-        ourPrice,
-        settings: effectiveSettings,
-        lastDownwardChangeAt: lastDecreaseAt
-      });
-
-      const breakEven = breakEvenPrice(effectiveSettings);
-
-      const alertCandidates = detectAlerts({
-        productId: product.id,
-        sku: product.sku,
-        ourPrice,
-        competitorMin,
-        previousCompetitorMin:
-          previousSnapshot?.competitorMinPrice !== null && previousSnapshot?.competitorMinPrice !== undefined
-            ? Number(previousSnapshot.competitorMinPrice)
-            : null,
-        buyboxStatus: snapshot.buyboxStatus,
-        breakEvenPrice: breakEven,
-        suggestedPrice: suggestion.suggested,
-        settings: effectiveSettings
-      });
-
-      for (const candidate of alertCandidates) {
-        const shouldCreate = await shouldCreateAlert(product.id, candidate.type, 15);
-        if (!shouldCreate) {
-          continue;
-        }
-
-        await prisma.alert.create({
-          data: {
-            productId: product.id,
-            type: candidate.type,
-            severity: candidate.severity,
-            message: candidate.message,
-            metadataJson: candidate.metadata as Prisma.InputJsonValue
+            if (shouldCreateMissingDataAlert) {
+              await prisma.alert.create({
+                data: {
+                  productId: product.id,
+                  type: "MISSING_PRODUCT_DATA",
+                  severity: "WARN",
+                  message: buildMissingProductDataMessage(product.sku, missingFields),
+                  metadataJson: {
+                    missingFields,
+                    costPrice: effectiveSettings.costPrice
+                  } as Prisma.InputJsonValue
+                }
+              });
+              alertsCreated += 1;
+            }
           }
-        });
-        alertsCreated += 1;
-      }
-    } catch (error) {
-      skipped += 1;
-      if (errors.length < 20) {
-        errors.push({
-          sku: product.sku,
-          message: error instanceof Error ? error.message : "Unknown poll error"
-        });
-      }
-    }
+
+          const catalogMatch =
+            catalogLookup.get(product.sku) ??
+            (product.barcode ? catalogLookup.get(product.barcode) : undefined) ??
+            (product.trendyolProductId ? catalogLookup.get(product.trendyolProductId) : undefined);
+
+          const snapshot = await refreshSnapshotForProduct(product, catalogMatch);
+
+          const ourPrice = snapshot.ourPrice !== null ? Number(snapshot.ourPrice) : null;
+          const competitorMin =
+            snapshot.competitorMinPrice !== null ? Number(snapshot.competitorMinPrice) : null;
+
+          const suggestion = suggestedPrice({
+            competitorMin,
+            ourPrice,
+            settings: effectiveSettings,
+            minPrice: product.settings?.minPrice ? Number(product.settings.minPrice) : 0,
+            lastDownwardChangeAt: lastDecreaseAt
+          });
+
+          const breakEven = enforcedFloorPrice(
+            effectiveSettings,
+            product.settings?.minPrice ? Number(product.settings.minPrice) : 0
+          );
+
+          const alertCandidates = detectAlerts({
+            productId: product.id,
+            sku: product.sku,
+            ourPrice,
+            competitorMin,
+            previousCompetitorMin:
+              previousSnapshot?.competitorMinPrice !== null && previousSnapshot?.competitorMinPrice !== undefined
+                ? Number(previousSnapshot.competitorMinPrice)
+                : null,
+            buyboxStatus: snapshot.buyboxStatus,
+            breakEvenPrice: breakEven,
+            suggestedPrice: suggestion.suggested,
+            settings: effectiveSettings
+          });
+
+          for (const candidate of alertCandidates) {
+            const shouldCreate = await shouldCreateAlert(product.id, candidate.type, 15);
+            if (!shouldCreate) {
+              continue;
+            }
+
+            await prisma.alert.create({
+              data: {
+                productId: product.id,
+                type: candidate.type,
+                severity: candidate.severity,
+                message: candidate.message,
+                metadataJson: candidate.metadata as Prisma.InputJsonValue
+              }
+            });
+            alertsCreated += 1;
+          }
+        } catch (error) {
+          skipped += 1;
+          if (errors.length < 20) {
+            errors.push({
+              sku: product.sku,
+              message: error instanceof Error ? error.message : "Unknown poll error"
+            });
+          }
+        }
+      })
+    );
   }
 
   return {

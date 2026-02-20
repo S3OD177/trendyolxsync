@@ -1,31 +1,63 @@
 import type { EffectiveProductSettings, PriceComputationResult } from "@/lib/pricing/types";
-import { roundMoney } from "@/lib/utils/money";
+import { ceilMoney, roundMoney } from "@/lib/utils/money";
+
+const FIXED_VAT_RATE = 0.15;
+
+export function normalizeFeeRate(input: number): number {
+  if (!Number.isFinite(input) || input < 0) {
+    throw new RangeError("Fee percentage must be a non-negative number");
+  }
+
+  if (input < 1) {
+    return input;
+  }
+
+  if (input <= 100) {
+    return input / 100;
+  }
+
+  throw new RangeError("Fee percentage cannot exceed 100%");
+}
+
+function resolveFeeInput(settings: EffectiveProductSettings): number {
+  return Number.isFinite(settings.feePercent) ? settings.feePercent : settings.commissionRate;
+}
+
+function resolveFeeRate(settings: EffectiveProductSettings): number {
+  return normalizeFeeRate(resolveFeeInput(settings));
+}
+
+function baseNoLossFloor(settings: EffectiveProductSettings): number {
+  const costPrice = Math.max(0, settings.costPrice);
+  const shippingCost = Math.max(0, settings.shippingCost);
+  const feeRate = resolveFeeRate(settings);
+
+  const vatAmount = costPrice * FIXED_VAT_RATE;
+  const feeAmount = costPrice * feeRate;
+
+  return costPrice + vatAmount + shippingCost + feeAmount;
+}
 
 export function computeFees(price: number, settings: EffectiveProductSettings): PriceComputationResult {
   const grossRevenue = Math.max(0, price);
-  const commissionFee = grossRevenue * settings.commissionRate;
+  const costPrice = Math.max(0, settings.costPrice);
+  const shippingCost = Math.max(0, settings.shippingCost);
 
-  const serviceFee =
-    settings.serviceFeeType === "PERCENT"
-      ? grossRevenue * settings.serviceFeeValue
-      : settings.serviceFeeValue;
+  let feeRate: number;
+  try {
+    feeRate = resolveFeeRate(settings);
+  } catch {
+    feeRate = Number.POSITIVE_INFINITY;
+  }
 
-  const shippingCost = settings.shippingCost;
-  const handlingCost = settings.handlingCost;
+  const vatAmount = costPrice * FIXED_VAT_RATE;
+  const commissionFee = Number.isFinite(feeRate) ? costPrice * feeRate : Number.POSITIVE_INFINITY;
+  const serviceFee = 0;
+  const handlingCost = 0;
 
-  const vatRateFactor = settings.vatRate > 0 ? settings.vatRate / 100 : 0;
-  const vatAmount =
-    settings.vatMode === "INCLUSIVE"
-      ? grossRevenue - grossRevenue / (1 + vatRateFactor)
-      : grossRevenue * vatRateFactor;
-
-  const netRevenue =
-    settings.vatMode === "INCLUSIVE"
-      ? grossRevenue - vatAmount
-      : grossRevenue;
-
-  const totalFees = commissionFee + serviceFee + shippingCost + handlingCost;
-  const profitSar = netRevenue - totalFees - settings.costPrice;
+  const totalFees = commissionFee + serviceFee + shippingCost + handlingCost + vatAmount;
+  const netRevenue = grossRevenue;
+  const profitSar = netRevenue - totalFees - costPrice;
   const profitPct = grossRevenue > 0 ? (profitSar / grossRevenue) * 100 : 0;
 
   return {
@@ -43,37 +75,31 @@ export function computeFees(price: number, settings: EffectiveProductSettings): 
 }
 
 export function breakEvenPrice(settings: EffectiveProductSettings): number {
-  const targetProfitSar =
-    settings.minProfitType === "SAR" ? settings.minProfitValue : 0;
-
-  const fixedCosts = settings.costPrice + settings.shippingCost + settings.handlingCost;
-  const variableRate =
-    settings.commissionRate +
-    (settings.serviceFeeType === "PERCENT" ? settings.serviceFeeValue : 0);
-
-  const vatRateFactor = settings.vatRate > 0 ? settings.vatRate / 100 : 0;
-
-  const netFactor = settings.vatMode === "INCLUSIVE" ? 1 / (1 + vatRateFactor) : 1;
+  let baseFloor: number;
+  try {
+    baseFloor = baseNoLossFloor(settings);
+  } catch {
+    return Number.POSITIVE_INFINITY;
+  }
 
   if (settings.minProfitType === "PERCENT") {
     const minProfitRate = settings.minProfitValue / 100;
-    const denominator = netFactor - variableRate - minProfitRate;
-
+    const denominator = 1 - minProfitRate;
     if (denominator <= 0) {
       return Number.POSITIVE_INFINITY;
     }
 
-    const fixedPortion = fixedCosts + (settings.serviceFeeType === "FIXED" ? settings.serviceFeeValue : 0);
-    return roundMoney(fixedPortion / denominator);
+    return ceilMoney(baseFloor / denominator);
   }
 
-  const denominator = netFactor - variableRate;
-  if (denominator <= 0) {
-    return Number.POSITIVE_INFINITY;
+  return ceilMoney(baseFloor + settings.minProfitValue);
+}
+
+export function enforcedFloorPrice(settings: EffectiveProductSettings, minPrice = 0): number {
+  const noLossFloor = breakEvenPrice(settings);
+  if (!Number.isFinite(noLossFloor)) {
+    return noLossFloor;
   }
 
-  const fixedPortion =
-    fixedCosts + targetProfitSar + (settings.serviceFeeType === "FIXED" ? settings.serviceFeeValue : 0);
-
-  return roundMoney(fixedPortion / denominator);
+  return ceilMoney(Math.max(noLossFloor, Math.max(0, minPrice)));
 }

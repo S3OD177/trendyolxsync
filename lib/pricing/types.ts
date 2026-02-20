@@ -2,6 +2,7 @@ import type { MinProfitType, ServiceFeeType, VatMode } from "@prisma/client";
 
 export interface EffectiveProductSettings {
   costPrice: number;
+  feePercent: number;
   commissionRate: number;
   serviceFeeType: ServiceFeeType;
   serviceFeeValue: number;
@@ -35,6 +36,7 @@ export interface SuggestedPriceArgs {
   competitorMin: number | null;
   ourPrice: number | null;
   settings: EffectiveProductSettings;
+  minPrice?: number | null;
   lastDownwardChangeAt?: Date | null;
   now?: Date;
   bypassCooldown?: boolean;
