@@ -3,37 +3,19 @@ import { runSallaBatchSync, runSingleSallaMatch } from "@/lib/salla/sync";
 import { matchSallaProduct } from "@/lib/salla/matcher";
 import { prisma } from "@/lib/db/prisma";
 
-const {
-  productUpdateMock,
-  productSettingsUpsertMock,
-  productFindUniqueMock,
-  productFindManyMock,
-  transactionMock
-} = vi.hoisted(() => {
-  const productUpdate = vi.fn();
-  const productSettingsUpsert = vi.fn();
-  const productFindUnique = vi.fn();
-  const productFindMany = vi.fn();
-
+const { productSettingsUpsertMock, productFindUniqueMock, productFindManyMock } = vi.hoisted(() => {
   return {
-    productUpdateMock: productUpdate,
-    productSettingsUpsertMock: productSettingsUpsert,
-    productFindUniqueMock: productFindUnique,
-    productFindManyMock: productFindMany,
-    transactionMock: {
-      product: { update: productUpdate },
-      productSettings: { upsert: productSettingsUpsert }
-    }
+    productSettingsUpsertMock: vi.fn(),
+    productFindUniqueMock: vi.fn(),
+    productFindManyMock: vi.fn()
   };
 });
 
 vi.mock("@/lib/db/prisma", () => ({
   prisma: {
-    $transaction: vi.fn(async (callback: (tx: typeof transactionMock) => unknown) => callback(transactionMock)),
     product: {
       findUnique: productFindUniqueMock,
-      findMany: productFindManyMock,
-      update: productUpdateMock
+      findMany: productFindManyMock
     },
     productSettings: {
       upsert: productSettingsUpsertMock
@@ -50,7 +32,7 @@ describe("salla sync", () => {
     vi.clearAllMocks();
   });
 
-  it("applies local cost and quantity updates when persist=true", async () => {
+  it("applies local cost update when persist=true", async () => {
     productFindUniqueMock.mockResolvedValue({
       id: "prod-1",
       sku: "SKU-1",
@@ -82,14 +64,6 @@ describe("salla sync", () => {
         update: { costPrice: 120 }
       })
     );
-    expect(productUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          sallaQuantity: 9,
-          sallaMatchMethod: "SKU"
-        })
-      })
-    );
   });
 
   it("supports dry run with persist=false", async () => {
@@ -119,7 +93,6 @@ describe("salla sync", () => {
 
     expect(result.persisted).toBe(false);
     expect(productSettingsUpsertMock).not.toHaveBeenCalled();
-    expect(productUpdateMock).not.toHaveBeenCalled();
   });
 
   it("does not write locally during dryRun batch sync", async () => {
@@ -166,7 +139,6 @@ describe("salla sync", () => {
     expect(summary.matched).toBe(1);
     expect(summary.updated).toBe(0);
     expect(productSettingsUpsertMock).not.toHaveBeenCalled();
-    expect(productUpdateMock).not.toHaveBeenCalled();
     expect(prisma.product.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { active: true }

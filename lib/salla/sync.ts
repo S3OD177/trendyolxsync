@@ -1,4 +1,3 @@
-import type { Prisma } from "@prisma/client";
 import { env } from "@/lib/config/env";
 import { prisma } from "@/lib/db/prisma";
 import { matchSallaProduct } from "@/lib/salla/matcher";
@@ -12,21 +11,6 @@ import type {
 } from "@/lib/salla/types";
 
 const CHUNK_SIZE = 20;
-
-function toSafeJson(value: unknown): Prisma.InputJsonValue {
-  if (value === undefined || value === null) {
-    return {} as Prisma.InputJsonValue;
-  }
-
-  try {
-    const parsed = JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue | null;
-    return parsed === null ? ({} as Prisma.InputJsonValue) : parsed;
-  } catch {
-    return {
-      note: "raw_payload_not_serializable"
-    } as Prisma.InputJsonValue;
-  }
-}
 
 export function selectCostWithoutTax(
   product: SallaProductRecord,
@@ -47,37 +31,24 @@ export async function persistSallaMatch(input: {
 }) {
   const costWithoutTax = selectCostWithoutTax(input.sallaProduct);
 
-  await prisma.$transaction(async (transaction) => {
-    if (costWithoutTax !== null) {
-      await transaction.productSettings.upsert({
-        where: { productId: input.productId },
-        update: { costPrice: costWithoutTax },
-        create: {
-          productId: input.productId,
-          costPrice: costWithoutTax
-        }
-      });
-    }
-
-    await transaction.product.update({
-      where: { id: input.productId },
-      data: {
-        sallaProductId: input.sallaProduct.id,
-        sallaSku: input.sallaProduct.sku,
-        sallaName: input.sallaProduct.name,
-        sallaQuantity: input.sallaProduct.quantity,
-        sallaPreTaxPrice: input.sallaProduct.preTaxPrice,
-        sallaCostPrice: input.sallaProduct.costPrice,
-        sallaMatchMethod: input.matchMethod,
-        sallaMatchScore: input.matchScore,
-        sallaLastSyncedAt: new Date(),
-        sallaRawPayload: toSafeJson(input.sallaProduct.raw)
+  if (costWithoutTax !== null) {
+    await prisma.productSettings.upsert({
+      where: { productId: input.productId },
+      update: { costPrice: costWithoutTax },
+      create: {
+        productId: input.productId,
+        costPrice: costWithoutTax
       }
     });
-  });
+  }
 
   return {
-    costWithoutTax
+    costWithoutTax,
+    quantity: input.sallaProduct.quantity,
+    preTaxPrice: input.sallaProduct.preTaxPrice,
+    costPrice: input.sallaProduct.costPrice,
+    method: input.matchMethod,
+    score: input.matchScore
   };
 }
 

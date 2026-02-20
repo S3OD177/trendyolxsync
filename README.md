@@ -5,7 +5,7 @@ Production-ready Next.js 14 admin app for monitoring Trendyol BuyBox competitive
 Core capabilities:
 - Poll Trendyol seller data every 5 minutes via cron endpoint
 - Auto-sync catalog from Trendyol inside each poll run (no manual sync required)
-- Store historical snapshots in Prisma/PostgreSQL (SQLite fallback for local dev)
+- Store historical snapshots in Prisma/PostgreSQL
 - Detect alerts (BuyBox loss, undercut, competitor drops, price-war risk)
 - Send in-app alerts only
 - Compute safe suggested prices with break-even protection
@@ -16,7 +16,7 @@ Core capabilities:
 - Next.js 14 (App Router) + TypeScript
 - Tailwind + shadcn-style UI components
 - Prisma ORM + migrations
-- PostgreSQL (production on cranl internal DB) or SQLite (local fallback)
+- PostgreSQL (cranl internal DB)
 
 ## Requirements
 - Node.js 20 LTS (`.nvmrc` provided)
@@ -28,10 +28,10 @@ cp .env.example .env
 npm install
 ```
 
-## Database mode and fallback
-DB is resolved automatically:
-- If `DATABASE_URL` starts with `postgres`, Prisma uses PostgreSQL
-- If `DATABASE_URL` is missing, app/CLI fallback to SQLite: `file:./prisma/dev.db`
+## Database
+This app requires PostgreSQL only:
+- Set `DATABASE_URL` to a real PostgreSQL URL (`postgresql://` or `postgres://`)
+- No SQLite fallback is supported
 
 Commands:
 ```bash
@@ -66,9 +66,7 @@ Open: `http://localhost:3000`
 - Optional `TRENDYOL_USER_AGENT`
 - `TRENDYOL_STOREFRONT_CODE=SA` (Saudi storefront)
 3. Optional Salla read-only integration credentials:
-- `SALLA_CLIENT_ID`
-- `SALLA_CLIENT_SECRET`
-- `SALLA_REDIRECT_URI`
+- `SALLA_ACCESS_TOKEN`
 - Optional `SALLA_COST_SOURCE=PRE_TAX` (or `COST_PRICE`)
 4. Set `APP_PIN` (4 digits, default `3698`)
 5. Set `CRON_SECRET`
@@ -117,8 +115,6 @@ Reference guide:
 - `GET/PATCH /api/products/[id]/settings`
 - `GET /api/products/[id]/details`
 - `GET /api/integrations/salla/status`
-- `GET /api/integrations/salla/oauth/start`
-- `GET /api/integrations/salla/oauth/callback`
 - `POST /api/integrations/salla/match`
 - `POST /api/integrations/salla/sync`
 

@@ -1,15 +1,11 @@
 import { z } from "zod";
 
-const resolvedDatabaseUrl = process.env.DATABASE_URL || "file:./prisma/dev.db";
-const resolvedDbProvider = resolvedDatabaseUrl.startsWith("postgres") ? "postgresql" : "sqlite";
-
-if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = resolvedDatabaseUrl;
-}
-
-if (!process.env.DB_PROVIDER) {
-  process.env.DB_PROVIDER = resolvedDbProvider;
-}
+const postgresDatabaseUrl = z
+  .string()
+  .min(1)
+  .refine((value) => /^postgres(ql)?:\/\//i.test(value), {
+    message: "DATABASE_URL must start with postgresql:// or postgres://"
+  });
 
 const booleanLike = z
   .union([z.boolean(), z.string()])
@@ -19,8 +15,7 @@ const booleanLike = z
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  DATABASE_URL: z.string().min(1),
-  DB_PROVIDER: z.enum(["postgresql", "sqlite"]),
+  DATABASE_URL: postgresDatabaseUrl,
 
   APP_URL: z.string().url().default("http://localhost:3000"),
   CRON_SECRET: z.string().min(8).default("change-me-in-production"),
@@ -39,6 +34,10 @@ const envSchema = z.object({
   SALLA_OAUTH_BASE_URL: z.string().url().default("https://accounts.salla.sa"),
   SALLA_CLIENT_ID: z.string().optional(),
   SALLA_CLIENT_SECRET: z.string().optional(),
+  SALLA_ACCESS_TOKEN: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    z.string().optional()
+  ),
   SALLA_REDIRECT_URI: z.preprocess(
     (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
     z.string().url().optional()
@@ -59,9 +58,7 @@ const envSchema = z.object({
 });
 
 export const env = envSchema.parse({
-  ...process.env,
-  DATABASE_URL: resolvedDatabaseUrl,
-  DB_PROVIDER: resolvedDbProvider
+  ...process.env
 });
 
 export const isProduction = env.NODE_ENV === "production";

@@ -67,16 +67,6 @@ model Product {
   category          String?
   active            Boolean          @default(true)
   currency          String           @default("SAR")
-  sallaProductId    String?
-  sallaSku          String?
-  sallaName         String?
-  sallaQuantity     Int?
-  sallaPreTaxPrice  Decimal?
-  sallaCostPrice    Decimal?
-  sallaMatchMethod  String?
-  sallaMatchScore   Decimal?
-  sallaLastSyncedAt DateTime?
-  sallaRawPayload   Json?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
@@ -208,21 +198,6 @@ model PriceChangeLog {
   requestedByUser User?   @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
 
   @@index([productId, createdAt])
-}
-
-model SallaCredential {
-  id                  String   @id @default(cuid())
-  key                 String   @unique @default("default")
-  merchantId          String?
-  accessTokenEncoded  String
-  refreshTokenEncoded String?
-  tokenType           String?
-  scope               String?
-  expiresAt           DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-
-  @@map("salla_credentials")
 }
 
 model JobLock {

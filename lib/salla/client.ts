@@ -1,26 +1,10 @@
 import { env } from "@/lib/config/env";
-import { prisma } from "@/lib/db/prisma";
-import type { SallaOAuthTokenPayload, SallaProductRecord } from "@/lib/salla/types";
+import type { SallaProductRecord } from "@/lib/salla/types";
 
 const RETRYABLE_HTTP_STATUS = new Set([429, 500, 502, 503, 504]);
-const DEFAULT_CREDENTIAL_KEY = "default";
-const TOKEN_REFRESH_SKEW_MS = 60_000;
 const MIN_REQUEST_GAP_MS = 180;
 
 let lastRequestAt = 0;
-
-interface StoredSallaCredential {
-  id: string;
-  key: string;
-  merchantId: string | null;
-  accessTokenEncoded: string;
-  refreshTokenEncoded: string | null;
-  tokenType: string | null;
-  scope: string | null;
-  expiresAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-}
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -72,6 +56,7 @@ function numberFromUnknown(value: unknown, depth = 0): number | null {
     if (!(key in objectValue)) {
       continue;
     }
+
     const nested = numberFromUnknown(objectValue[key], depth + 1);
     if (nested !== null) {
       return nested;
@@ -94,23 +79,6 @@ function pickNumber(source: unknown, paths: string[]): number | null {
 
 function toObject(value: unknown) {
   return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
-}
-
-function encodeToken(token: string) {
-  return Buffer.from(token, "utf8").toString("base64");
-}
-
-function decodeToken(encodedToken: string) {
-  return Buffer.from(encodedToken, "base64").toString("utf8");
-}
-
-function deriveExpiresAt(expiresIn?: number) {
-  if (!Number.isFinite(expiresIn)) {
-    return null;
-  }
-
-  const expiryMs = Math.max(0, Number(expiresIn)) * 1000;
-  return new Date(Date.now() + expiryMs);
 }
 
 export function mapSallaProduct(raw: unknown): SallaProductRecord | null {
@@ -225,202 +193,41 @@ function extractObjectPayload(result: unknown): unknown {
 
 export class SallaClient {
   private baseUrl: string;
-  private oauthBaseUrl: string;
-  private clientId: string;
-  private clientSecret: string;
-  private redirectUri: string;
+  private accessToken: string;
 
   constructor() {
     this.baseUrl = env.SALLA_BASE_URL;
-    this.oauthBaseUrl = env.SALLA_OAUTH_BASE_URL;
-    this.clientId = env.SALLA_CLIENT_ID ?? "";
-    this.clientSecret = env.SALLA_CLIENT_SECRET ?? "";
-    this.redirectUri = env.SALLA_REDIRECT_URI ?? "";
+    this.accessToken = env.SALLA_ACCESS_TOKEN ?? "";
   }
 
   isConfigured() {
-    return Boolean(this.clientId && this.clientSecret && this.redirectUri);
+    return Boolean(this.baseUrl && this.accessToken);
   }
 
   async hasCredential() {
-    const credential = await prisma.sallaCredential.findUnique({
-      where: { key: DEFAULT_CREDENTIAL_KEY }
-    });
-
-    return Boolean(credential);
+    return this.isConfigured();
   }
 
   async getCredentialSummary() {
-    const credential = await prisma.sallaCredential.findUnique({
-      where: { key: DEFAULT_CREDENTIAL_KEY }
-    });
-
-    if (!credential) {
+    if (!this.isConfigured()) {
       return null;
     }
 
     return {
-      key: credential.key,
-      merchantId: credential.merchantId,
-      scope: credential.scope,
-      expiresAt: credential.expiresAt,
-      updatedAt: credential.updatedAt
+      source: "env",
+      tokenConfigured: true
     };
   }
 
-  buildAuthorizationUrl(state: string) {
-    if (!this.isConfigured()) {
-      throw new Error("Salla OAuth is not configured");
-    }
-
-    const params = new URLSearchParams({
-      client_id: this.clientId,
-      redirect_uri: this.redirectUri,
-      response_type: "code",
-      scope: "products.read offline_access",
-      state
-    });
-
-    return `${this.oauthBaseUrl}/oauth2/auth?${params.toString()}`;
-  }
-
-  async exchangeCodeForAccessToken(code: string) {
-    if (!this.isConfigured()) {
-      throw new Error("Salla OAuth is not configured");
-    }
-
-    const body = new URLSearchParams({
-      grant_type: "authorization_code",
-      client_id: this.clientId,
-      client_secret: this.clientSecret,
-      redirect_uri: this.redirectUri,
-      code
-    });
-
-    const response = await fetch(`${this.oauthBaseUrl}/oauth2/token`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body: body.toString(),
-      cache: "no-store"
-    });
-
-    const payload = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      throw new Error(`Salla OAuth exchange failed (${response.status})`);
-    }
-
-    const tokenPayload = payload as SallaOAuthTokenPayload;
-    if (!tokenPayload.access_token) {
-      throw new Error("Salla OAuth response missing access_token");
-    }
-
-    return tokenPayload;
-  }
-
-  async upsertCredentialFromOAuthPayload(payload: SallaOAuthTokenPayload) {
-    const merchantId =
-      payload.merchant_id !== undefined && payload.merchant_id !== null
-        ? String(payload.merchant_id)
-        : payload.merchant?.id !== undefined && payload.merchant?.id !== null
-          ? String(payload.merchant.id)
-          : null;
-
-    const expiresAt = deriveExpiresAt(payload.expires_in);
-
-    return prisma.sallaCredential.upsert({
-      where: { key: DEFAULT_CREDENTIAL_KEY },
-      update: {
-        merchantId,
-        accessTokenEncoded: encodeToken(payload.access_token),
-        refreshTokenEncoded: payload.refresh_token ? encodeToken(payload.refresh_token) : null,
-        tokenType: payload.token_type ?? null,
-        scope: payload.scope ?? null,
-        expiresAt
-      },
-      create: {
-        key: DEFAULT_CREDENTIAL_KEY,
-        merchantId,
-        accessTokenEncoded: encodeToken(payload.access_token),
-        refreshTokenEncoded: payload.refresh_token ? encodeToken(payload.refresh_token) : null,
-        tokenType: payload.token_type ?? null,
-        scope: payload.scope ?? null,
-        expiresAt
-      }
-    });
-  }
-
-  private shouldRefresh(credential: StoredSallaCredential) {
-    if (!credential.expiresAt) {
-      return false;
-    }
-
-    return credential.expiresAt.getTime() - Date.now() <= TOKEN_REFRESH_SKEW_MS;
-  }
-
-  private async refreshAccessToken(credential: StoredSallaCredential) {
-    if (!credential.refreshTokenEncoded) {
-      throw new Error("Salla access token expired and no refresh token is available");
-    }
-
-    const refreshToken = decodeToken(credential.refreshTokenEncoded);
-    const body = new URLSearchParams({
-      grant_type: "refresh_token",
-      client_id: this.clientId,
-      client_secret: this.clientSecret,
-      refresh_token: refreshToken
-    });
-
-    const response = await fetch(`${this.oauthBaseUrl}/oauth2/token`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body: body.toString(),
-      cache: "no-store"
-    });
-
-    const payload = (await response.json().catch(() => ({}))) as SallaOAuthTokenPayload;
-
-    if (!response.ok || !payload.access_token) {
-      throw new Error(`Salla token refresh failed (${response.status})`);
-    }
-
-    await this.upsertCredentialFromOAuthPayload(payload);
-    return payload.access_token;
-  }
-
-  private async resolveAccessToken() {
-    if (!this.isConfigured()) {
-      throw new Error("Salla OAuth is not configured");
-    }
-
-    const credential = (await prisma.sallaCredential.findUnique({
-      where: { key: DEFAULT_CREDENTIAL_KEY }
-    })) as StoredSallaCredential | null;
-
-    if (!credential) {
-      throw new Error("Salla is not connected. Complete OAuth first.");
-    }
-
-    if (this.shouldRefresh(credential)) {
-      return this.refreshAccessToken(credential);
-    }
-
-    return decodeToken(credential.accessTokenEncoded);
-  }
-
   private async request<T>(path: string, init?: RequestInit, retries = 3): Promise<T> {
+    if (!this.isConfigured()) {
+      throw new Error("Salla credentials are not configured. Set SALLA_ACCESS_TOKEN.");
+    }
+
     const method = init?.method ?? "GET";
     const url = `${this.baseUrl}${path}`;
-    let accessToken = await this.resolveAccessToken();
-    let refreshAttempted = false;
-
     let attempt = 0;
+
     while (attempt <= retries) {
       attempt += 1;
 
@@ -435,7 +242,7 @@ export class SallaClient {
         method,
         headers: {
           Accept: "application/json",
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${this.accessToken}`,
           ...(init?.headers ?? {})
         },
         cache: "no-store"
@@ -443,18 +250,6 @@ export class SallaClient {
 
       if (response.ok) {
         return (await response.json()) as T;
-      }
-
-      if (response.status === 401 && !refreshAttempted) {
-        refreshAttempted = true;
-        const credential = (await prisma.sallaCredential.findUnique({
-          where: { key: DEFAULT_CREDENTIAL_KEY }
-        })) as StoredSallaCredential | null;
-
-        if (credential?.refreshTokenEncoded) {
-          accessToken = await this.refreshAccessToken(credential);
-          continue;
-        }
       }
 
       if (attempt <= retries && RETRYABLE_HTTP_STATUS.has(response.status)) {
