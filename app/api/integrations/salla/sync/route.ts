@@ -15,9 +15,9 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  if (!sallaClient.isConfigured()) {
+  if (!(await sallaClient.hasCredential())) {
     return NextResponse.json(
-      { error: "Salla is not configured. Set SALLA_ACCESS_TOKEN." },
+      { error: "Salla is not connected. Connect via OAuth or set SALLA_ACCESS_TOKEN." },
       { status: 400, headers: NO_STORE_HEADERS }
     );
   }

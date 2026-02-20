@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Play, CheckCircle2, XCircle, Clock, ChevronDown, ChevronRight, Zap } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
@@ -15,6 +15,7 @@ interface EndpointDef {
   pathTemplate: string;
   body?: Record<string, unknown>;
   category: string;
+  target?: "trendyol" | "local";
 }
 
 interface TestResult {
@@ -27,6 +28,7 @@ interface TestResult {
 }
 
 const SELLER_ID = "{{sellerId}}"; // replaced at runtime
+const LIVE_REFRESH_INTERVAL_MS = 45_000;
 
 const ENDPOINTS: EndpointDef[] = [
   // ── Product (Read) ──────────────────────────────────────────
@@ -262,6 +264,47 @@ const ENDPOINTS: EndpointDef[] = [
   }
 ];
 
+const LOCAL_API_ENDPOINTS: EndpointDef[] = [
+  {
+    id: "app-dashboard",
+    name: "Dashboard API",
+    description: "Checks dashboard summary API and database connectivity",
+    method: "GET",
+    pathTemplate: "/api/dashboard?limit=5",
+    category: "App APIs",
+    target: "local"
+  },
+  {
+    id: "app-settings",
+    name: "Settings API",
+    description: "Checks settings API availability",
+    method: "GET",
+    pathTemplate: "/api/settings",
+    category: "App APIs",
+    target: "local"
+  },
+  {
+    id: "app-alerts",
+    name: "Alerts API",
+    description: "Checks alerts API response",
+    method: "GET",
+    pathTemplate: "/api/alerts",
+    category: "App APIs",
+    target: "local"
+  },
+  {
+    id: "app-salla-status",
+    name: "Salla Status API",
+    description: "Checks Salla integration status endpoint",
+    method: "GET",
+    pathTemplate: "/api/integrations/salla/status",
+    category: "App APIs",
+    target: "local"
+  }
+];
+
+const ALL_ENDPOINTS = [...LOCAL_API_ENDPOINTS, ...ENDPOINTS];
+
 function StatusIcon({ status }: { status: TestResult["status"] }) {
   switch (status) {
     case "pending":
@@ -303,26 +346,20 @@ export function ApiTestClient() {
   const [runningAll, setRunningAll] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [config, setConfig] = useState<{ sellerId: string; barcode: string } | null>(null);
+  const [lastRunAt, setLastRunAt] = useState<number | null>(null);
+  const runLockRef = useRef(false);
 
-  const fetchConfig = useCallback(async () => {
-    try {
-      const res = await fetch("/api/debug/test-endpoint", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          path: `/integration/product/sellers/0/products/approved?page=0&size=1`,
-          method: "GET"
-        })
-      });
-      // We just need the sellerId from the response headers; let's use a simpler approach
-      const configRes = await fetch("/api/debug/config");
-      if (configRes.ok) {
-        return await configRes.json();
-      }
-    } catch {
-      // fallback
+  const parseJsonSafe = useCallback(async (response: Response) => {
+    const raw = await response.text();
+    if (!raw.trim()) {
+      return null;
     }
-    return null;
+
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return raw;
+    }
   }, []);
 
   const runSingleTest = useCallback(async (endpoint: EndpointDef, sellerId: string, barcode: string) => {
@@ -346,25 +383,55 @@ export function ApiTestClient() {
     }));
 
     try {
-      const res = await fetch("/api/debug/test-endpoint", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path, method: endpoint.method, body })
-      });
+      if (endpoint.target === "local") {
+        const start = Date.now();
+        const localRes = await fetch(path, {
+          method: endpoint.method,
+          headers: body ? { "Content-Type": "application/json" } : undefined,
+          body: body ? JSON.stringify(body) : undefined,
+          cache: "no-store"
+        });
+        const data = await parseJsonSafe(localRes);
+        const warning = data && typeof data === "object" && typeof (data as Record<string, unknown>).warning === "string"
+          ? (data as Record<string, string>).warning
+          : null;
+        const apiError = data && typeof data === "object" && typeof (data as Record<string, unknown>).error === "string"
+          ? (data as Record<string, string>).error
+          : null;
+        const isOk = localRes.ok && !warning;
 
-      const data = await res.json();
+        setResults((prev) => ({
+          ...prev,
+          [endpoint.id]: {
+            id: endpoint.id,
+            status: isOk ? "ok" : "error",
+            httpStatus: localRes.status,
+            durationMs: Date.now() - start,
+            response: data,
+            error: warning ?? apiError ?? undefined
+          }
+        }));
+      } else {
+        const res = await fetch("/api/debug/test-endpoint", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path, method: endpoint.method, body })
+        });
 
-      setResults((prev) => ({
-        ...prev,
-        [endpoint.id]: {
-          id: endpoint.id,
-          status: data.status === "ok" && data.httpStatus >= 200 && data.httpStatus < 300 ? "ok" : "error",
-          httpStatus: data.httpStatus,
-          durationMs: data.durationMs,
-          response: data.response,
-          error: data.error
-        }
-      }));
+        const data = await res.json();
+
+        setResults((prev) => ({
+          ...prev,
+          [endpoint.id]: {
+            id: endpoint.id,
+            status: data.status === "ok" && data.httpStatus >= 200 && data.httpStatus < 300 ? "ok" : "error",
+            httpStatus: data.httpStatus,
+            durationMs: data.durationMs,
+            response: data.response,
+            error: data.error
+          }
+        }));
+      }
     } catch (error) {
       setResults((prev) => ({
         ...prev,
@@ -375,42 +442,73 @@ export function ApiTestClient() {
         }
       }));
     }
-  }, []);
+  }, [parseJsonSafe]);
 
   const runAll = useCallback(async () => {
-    setRunningAll(true);
-    setResults({});
-
-    // First get config (sellerId, barcode)
-    let sellerId = "";
-    let barcode = "";
-
-    try {
-      const configRes = await fetch("/api/debug/config");
-      if (configRes.ok) {
-        const cfg = await configRes.json();
-        sellerId = cfg.sellerId ?? "";
-        barcode = cfg.sampleBarcode ?? "";
-        setConfig({ sellerId, barcode });
-      }
-    } catch {
-      // If config endpoint doesn't exist, try to run anyway
-    }
-
-    if (!sellerId) {
-      // Fallback: run first product endpoint to discover sellerId
-      setRunningAll(false);
+    if (runLockRef.current) {
       return;
     }
 
-    for (const endpoint of ENDPOINTS) {
-      await runSingleTest(endpoint, sellerId, barcode);
-    }
+    runLockRef.current = true;
+    setRunningAll(true);
+    setResults({});
+    try {
+      // First get config (sellerId, barcode)
+      let sellerId = "";
+      let barcode = "";
 
-    setRunningAll(false);
+      try {
+        const configRes = await fetch("/api/debug/config");
+        if (configRes.ok) {
+          const cfg = await configRes.json();
+          sellerId = cfg.sellerId ?? "";
+          barcode = cfg.sampleBarcode ?? "";
+          setConfig({ sellerId, barcode });
+        }
+      } catch {
+        // If config endpoint doesn't exist, try to run anyway
+      }
+
+      if (!sellerId) {
+        setResults((prev) => {
+          const next = { ...prev };
+          for (const endpoint of ENDPOINTS) {
+            next[endpoint.id] = {
+              id: endpoint.id,
+              status: "error",
+              error: "Missing Trendyol seller configuration"
+            };
+          }
+          return next;
+        });
+      } else {
+        for (const endpoint of ENDPOINTS) {
+          await runSingleTest(endpoint, sellerId, barcode);
+        }
+      }
+
+      for (const endpoint of LOCAL_API_ENDPOINTS) {
+        await runSingleTest(endpoint, sellerId, barcode);
+      }
+    } finally {
+      setLastRunAt(Date.now());
+      setRunningAll(false);
+      runLockRef.current = false;
+    }
   }, [runSingleTest]);
 
-  const categories = [...new Set(ENDPOINTS.map((e) => e.category))];
+  useEffect(() => {
+    void runAll();
+    const timer = window.setInterval(() => {
+      void runAll();
+    }, LIVE_REFRESH_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [runAll]);
+
+  const categories = useMemo(() => [...new Set(ALL_ENDPOINTS.map((endpoint) => endpoint.category))], []);
   const working = Object.values(results).filter((r) => r.status === "ok").length;
   const failed = Object.values(results).filter((r) => r.status === "error").length;
   const total = Object.values(results).filter((r) => r.status !== "pending").length;
@@ -421,19 +519,22 @@ export function ApiTestClient() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Trendyol API Tester</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Test all Trendyol API endpoints live and see raw responses
+            Live checks for Trendyol and app APIs. Auto-refresh every {LIVE_REFRESH_INTERVAL_MS / 1000}s.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {lastRunAt ? `Last run: ${new Date(lastRunAt).toLocaleTimeString()}` : "Waiting for first run..."}
           </p>
         </div>
         <Button onClick={runAll} disabled={runningAll} size="lg">
           {runningAll ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Testing...
+              Live Testing...
             </>
           ) : (
             <>
               <Zap className="mr-2 h-4 w-4" />
-              Test All APIs
+              Run Now
             </>
           )}
         </Button>
@@ -459,13 +560,13 @@ export function ApiTestClient() {
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="text-center">
-                <div className="text-3xl font-bold">{total}</div>
-                <div className="text-xs text-muted-foreground mt-1">Total Tested</div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold">{total}</div>
+              <div className="text-xs text-muted-foreground mt-1">Total Endpoints</div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
       )}
 
       {config && (
@@ -489,7 +590,7 @@ export function ApiTestClient() {
         <div key={category}>
           <h2 className="text-lg font-semibold mb-3 text-muted-foreground">{category}</h2>
           <div className="space-y-2">
-            {ENDPOINTS.filter((e) => e.category === category).map((endpoint) => {
+            {ALL_ENDPOINTS.filter((e) => e.category === category).map((endpoint) => {
               const result = results[endpoint.id];
               const isExpanded = expandedId === endpoint.id;
 
@@ -564,7 +665,7 @@ export function ApiTestClient() {
                       )}
                       {!result && (
                         <div className="text-xs text-muted-foreground italic">
-                          Click &quot;Test All APIs&quot; or the play button to test this endpoint
+                          Live testing will run this endpoint automatically.
                         </div>
                       )}
                     </div>

@@ -11,6 +11,10 @@ import { matchPreview, runSallaBatchSync, runSingleSallaMatch } from "@/lib/sall
 vi.mock("@/lib/salla/client", () => ({
   sallaClient: {
     isConfigured: vi.fn(),
+    isOAuthReady: vi.fn(),
+    hasCredential: vi.fn(),
+    getAuthorizationUrl: vi.fn(),
+    connectWithAuthorizationCode: vi.fn(),
     getCredentialSummary: vi.fn()
   }
 }));
@@ -25,22 +29,52 @@ describe("salla api routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(sallaClient.isConfigured).mockReturnValue(true);
+    vi.mocked(sallaClient.isOAuthReady).mockReturnValue(true);
+    vi.mocked(sallaClient.hasCredential).mockResolvedValue(true);
   });
 
-  it("returns 501 for OAuth start endpoint", async () => {
+  it("redirects to Salla authorization URL for OAuth start", async () => {
+    vi.mocked(sallaClient.getAuthorizationUrl).mockReturnValue(
+      "https://accounts.salla.sa/oauth2/auth?response_type=code&state=abc"
+    );
+
     const response = await oauthStartGET();
-    const payload = await response.json();
 
-    expect(response.status).toBe(501);
-    expect(payload.error).toContain("SALLA_ACCESS_TOKEN");
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toContain("https://accounts.salla.sa/oauth2/auth");
+    expect(response.headers.get("set-cookie")).toContain("salla_oauth_state=");
   });
 
-  it("returns 501 for OAuth callback endpoint", async () => {
-    const response = await oauthCallbackGET();
-    const payload = await response.json();
+  it("handles OAuth callback success and redirects to settings", async () => {
+    vi.mocked(sallaClient.connectWithAuthorizationCode).mockResolvedValue({
+      source: "oauth",
+      tokenConfigured: true,
+      merchantId: "m1",
+      expiresAt: null
+    });
 
-    expect(response.status).toBe(501);
-    expect(payload.error).toContain("SALLA_ACCESS_TOKEN");
+    const request = new NextRequest(
+      "http://localhost:3000/api/integrations/salla/oauth/callback?code=test-code&state=test-state",
+      { headers: { cookie: "salla_oauth_state=test-state" } }
+    );
+
+    const response = await oauthCallbackGET(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toContain("/settings?sallaOAuth=connected");
+    expect(vi.mocked(sallaClient.connectWithAuthorizationCode)).toHaveBeenCalledWith("test-code");
+  });
+
+  it("rejects OAuth callback when state is invalid", async () => {
+    const request = new NextRequest(
+      "http://localhost:3000/api/integrations/salla/oauth/callback?code=test-code&state=wrong-state",
+      { headers: { cookie: "salla_oauth_state=expected-state" } }
+    );
+
+    const response = await oauthCallbackGET(request);
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toContain("/settings?sallaOAuth=error");
   });
 
   it("validates match request payload", async () => {
@@ -129,9 +163,9 @@ describe("salla api routes", () => {
     expect(payload.total).toBe(2);
   });
 
-  it("returns token-based status", async () => {
+  it("returns credential-aware status", async () => {
     vi.mocked(sallaClient.getCredentialSummary).mockResolvedValue({
-      source: "env",
+      source: "oauth",
       tokenConfigured: true
     });
 
@@ -140,7 +174,8 @@ describe("salla api routes", () => {
 
     expect(response.status).toBe(200);
     expect(payload.configured).toBe(true);
+    expect(payload.oauthReady).toBe(true);
     expect(payload.connected).toBe(true);
-    expect(payload.credential.source).toBe("env");
+    expect(payload.credential.source).toBe("oauth");
   });
 });

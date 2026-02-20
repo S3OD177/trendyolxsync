@@ -6,6 +6,7 @@ import { formatApiError, isDatabaseUnavailableError } from "@/lib/db/errors";
 import { NO_STORE_HEADERS } from "@/lib/http/no-store";
 import { getOrCreateGlobalSettings } from "@/lib/pricing/effective-settings";
 import { normalizeFeeRate } from "@/lib/pricing/calculator";
+import { sallaClient } from "@/lib/salla/client";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,8 @@ function integrationStatus() {
       (env.TRENDYOL_SUPPLIER_ID || env.TRENDYOL_SELLER_ID) &&
       env.TRENDYOL_API_KEY &&
       env.TRENDYOL_API_SECRET
-    )
+    ),
+    sallaConfigured: sallaClient.isConfigured()
   };
 }
 

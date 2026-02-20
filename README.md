@@ -67,6 +67,10 @@ Open: `http://localhost:3000`
 - `TRENDYOL_STOREFRONT_CODE=SA` (Saudi storefront)
 3. Optional Salla read-only integration credentials:
 - `SALLA_ACCESS_TOKEN`
+- Or configure OAuth:
+- `SALLA_CLIENT_ID`
+- `SALLA_CLIENT_SECRET`
+- `SALLA_REDIRECT_URI` (for example: `http://localhost:3000/api/integrations/salla/oauth/callback`)
 - Optional `SALLA_COST_SOURCE=PRE_TAX` (or `COST_PRICE`)
 4. Set `APP_PIN` (4 digits, default `3698`)
 5. Set `CRON_SECRET`
@@ -115,6 +119,8 @@ Reference guide:
 - `GET/PATCH /api/products/[id]/settings`
 - `GET /api/products/[id]/details`
 - `GET /api/integrations/salla/status`
+- `GET /api/integrations/salla/oauth/start`
+- `GET /api/integrations/salla/oauth/callback`
 - `POST /api/integrations/salla/match`
 - `POST /api/integrations/salla/sync`
 

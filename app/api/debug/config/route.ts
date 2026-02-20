@@ -8,11 +8,17 @@ export async function GET() {
   const sellerId = trendyolClient.getSellerId();
   const storeFrontCode = trendyolClient.getStoreFrontCode();
 
-  // Find a sample barcode from the DB
-  const product = await prisma.product.findFirst({
-    where: { barcode: { not: null }, active: true },
-    select: { barcode: true, sku: true }
-  });
+  let product: { barcode: string | null; sku: string } | null = null;
+  let warning: string | null = null;
+
+  try {
+    product = await prisma.product.findFirst({
+      where: { barcode: { not: null }, active: true },
+      select: { barcode: true, sku: true }
+    });
+  } catch (error) {
+    warning = error instanceof Error ? error.message : "Failed to load sample barcode from database";
+  }
 
   return NextResponse.json({
     sellerId,
@@ -20,6 +26,7 @@ export async function GET() {
     baseUrl: trendyolClient.getBaseUrl(),
     isConfigured: trendyolClient.isConfigured(),
     sampleBarcode: product?.barcode ?? "",
-    sampleSku: product?.sku ?? ""
+    sampleSku: product?.sku ?? "",
+    warning
   });
 }

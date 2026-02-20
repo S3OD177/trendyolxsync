@@ -7,13 +7,14 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const configured = sallaClient.isConfigured();
-    const credential = configured ? await sallaClient.getCredentialSummary() : null;
+    const credential = await sallaClient.getCredentialSummary();
+    const connected = Boolean(credential?.tokenConfigured);
 
     return NextResponse.json(
       {
-        configured,
-        connected: Boolean(credential),
+        configured: sallaClient.isConfigured(),
+        oauthReady: sallaClient.isOAuthReady(),
+        connected,
         costSource: env.SALLA_COST_SOURCE,
         credential
       },
@@ -23,6 +24,7 @@ export async function GET() {
     return NextResponse.json(
       {
         configured: sallaClient.isConfigured(),
+        oauthReady: sallaClient.isOAuthReady(),
         connected: false,
         error: error instanceof Error ? error.message : "Failed to read Salla status"
       },

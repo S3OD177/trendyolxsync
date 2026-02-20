@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,9 +20,39 @@ interface GlobalSettingsForm {
   competitorDropPct: number;
 }
 
+interface SallaStatusPayload {
+  configured: boolean;
+  oauthReady: boolean;
+  connected: boolean;
+  costSource: "PRE_TAX" | "COST_PRICE";
+  credential?: {
+    source?: string;
+    tokenConfigured?: boolean;
+    tokenType?: string | null;
+    scope?: string | null;
+    merchantId?: string | null;
+    expiresAt?: string | null;
+    expired?: boolean;
+  } | null;
+  error?: string;
+}
+
 function toNumber(value: unknown, fallback = 0) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) {
+    return "N/A";
+  }
+
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) {
+    return "N/A";
+  }
+
+  return date.toLocaleString();
 }
 
 async function readJsonResponse(response: Response): Promise<Record<string, any>> {
@@ -42,9 +72,51 @@ export function SettingsClient() {
   const { toast } = useToast();
   const [form, setForm] = useState<GlobalSettingsForm | null>(null);
   const [integrations, setIntegrations] = useState<Record<string, boolean>>({});
+  const [sallaStatus, setSallaStatus] = useState<SallaStatusPayload | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [syncingSalla, setSyncingSalla] = useState(false);
+  const [refreshingSallaStatus, setRefreshingSallaStatus] = useState(false);
+
+  const loadSallaStatus = useCallback(
+    async (silent = false) => {
+      if (!silent) {
+        setRefreshingSallaStatus(true);
+      }
+
+      try {
+        const response = await fetch("/api/integrations/salla/status", { cache: "no-store" });
+        const data = await readJsonResponse(response);
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to fetch Salla status");
+        }
+
+        setSallaStatus({
+          configured: Boolean(data.configured),
+          oauthReady: Boolean(data.oauthReady),
+          connected: Boolean(data.connected),
+          costSource: data.costSource === "COST_PRICE" ? "COST_PRICE" : "PRE_TAX",
+          credential: data.credential ?? null,
+          error: typeof data.error === "string" ? data.error : undefined
+        });
+      } catch (error) {
+        if (!silent) {
+          toast({
+            title: "Failed to load Salla status",
+            description: error instanceof Error ? error.message : "Unknown error",
+            variant: "destructive"
+          });
+        }
+      } finally {
+        if (!silent) {
+          setRefreshingSallaStatus(false);
+        }
+      }
+    },
+    [toast]
+  );
 
   useEffect(() => {
     const load = async () => {
@@ -84,8 +156,33 @@ export function SettingsClient() {
       }
     };
 
-    load();
-  }, [toast]);
+    void Promise.all([load(), loadSallaStatus(true)]);
+  }, [toast, loadSallaStatus]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauthState = params.get("sallaOAuth");
+    const message = params.get("sallaMessage");
+
+    if (!oauthState) {
+      return;
+    }
+
+    toast({
+      title: oauthState === "connected" ? "Salla connected" : "Salla OAuth failed",
+      description:
+        message || (oauthState === "connected" ? "OAuth connection completed successfully." : "Please try again."),
+      variant: oauthState === "connected" ? "default" : "destructive"
+    });
+
+    params.delete("sallaOAuth");
+    params.delete("sallaMessage");
+    const query = params.toString();
+    const nextUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
+    window.history.replaceState({}, "", nextUrl);
+
+    void loadSallaStatus(true);
+  }, [toast, loadSallaStatus]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -124,9 +221,54 @@ export function SettingsClient() {
     }
   };
 
+  const connectSallaOAuth = () => {
+    window.location.href = "/api/integrations/salla/oauth/start";
+  };
+
+  const syncSallaProducts = async () => {
+    setSyncingSalla(true);
+
+    try {
+      const response = await fetch("/api/integrations/salla/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          activeOnly: true,
+          limit: 100,
+          offset: 0,
+          persist: true,
+          dryRun: false
+        })
+      });
+      const data = await readJsonResponse(response);
+
+      if (!response.ok) {
+        throw new Error(data.error || "Salla sync failed");
+      }
+
+      toast({
+        title: "Salla sync completed",
+        description: `Matched ${data.matched ?? 0}, updated ${data.updated ?? 0}, skipped ${data.skipped ?? 0}.`
+      });
+
+      await loadSallaStatus(true);
+    } catch (error) {
+      toast({
+        title: "Salla sync failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive"
+      });
+    } finally {
+      setSyncingSalla(false);
+    }
+  };
+
   if (loading || !form) {
     return <p className="text-sm text-muted-foreground">Loading settings...</p>;
   }
+
+  const sallaConnected = Boolean(sallaStatus?.connected);
+  const sallaSource = sallaStatus?.credential?.source?.toUpperCase() ?? "N/A";
 
   return (
     <div className="space-y-6">
@@ -148,11 +290,60 @@ export function SettingsClient() {
               {warning}
             </div>
           ) : null}
-          <div className="surface-muted flex items-center justify-between p-4">
-            <span className="font-medium text-foreground">Trendyol API</span>
-            <Badge variant={integrations.trendyolConfigured ? "success" : "destructive"}>
-              {integrations.trendyolConfigured ? "Configured" : "Missing"}
-            </Badge>
+
+          <div className="surface-muted space-y-2 p-4">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-foreground">Trendyol API</span>
+              <Badge variant={integrations.trendyolConfigured ? "success" : "destructive"}>
+                {integrations.trendyolConfigured ? "Configured" : "Missing"}
+              </Badge>
+            </div>
+          </div>
+
+          <div className="surface-muted space-y-3 p-4">
+            <div className="flex items-center justify-between">
+              <span className="font-medium text-foreground">Salla Integration</span>
+              <Badge variant={sallaConnected ? "success" : "destructive"}>
+                {sallaConnected ? "Connected" : "Disconnected"}
+              </Badge>
+            </div>
+
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <p>
+                Auth source: <span className="font-medium text-foreground">{sallaSource}</span>
+              </p>
+              <p>
+                OAuth ready:{" "}
+                <span className="font-medium text-foreground">{sallaStatus?.oauthReady ? "Yes" : "No"}</span>
+              </p>
+              <p>
+                Cost source: <span className="font-medium text-foreground">{sallaStatus?.costSource ?? "PRE_TAX"}</span>
+              </p>
+              <p>
+                Token expiry:{" "}
+                <span className="font-medium text-foreground">
+                  {formatDateTime(sallaStatus?.credential?.expiresAt)}
+                </span>
+              </p>
+              {sallaStatus?.error ? <p className="text-red-400">{sallaStatus.error}</p> : null}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={connectSallaOAuth} disabled={!sallaStatus?.oauthReady}>
+                Connect OAuth
+              </Button>
+              <Button size="sm" onClick={syncSallaProducts} disabled={!sallaConnected || syncingSalla}>
+                {syncingSalla ? "Syncing..." : "Sync Salla Products"}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => loadSallaStatus()}
+                disabled={refreshingSallaStatus}
+              >
+                {refreshingSallaStatus ? "Refreshing..." : "Refresh Status"}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
