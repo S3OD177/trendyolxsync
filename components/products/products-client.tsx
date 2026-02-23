@@ -784,8 +784,9 @@ export function ProductsClient() {
         accessorKey: "sku",
         header: "SKU",
         enableHiding: false,
+        size: 110,
         meta: {
-          headerClassName: "w-[140px]",
+          headerClassName: "w-[110px]",
           cellClassName: "font-semibold text-foreground tabular-nums",
           pin: "left"
         }
@@ -795,12 +796,13 @@ export function ProductsClient() {
         accessorKey: "title",
         header: "Title",
         enableHiding: false,
+        size: 200,
         meta: {
-          headerClassName: "min-w-[280px]",
+          headerClassName: "w-[200px]",
           pin: "left"
         },
         cell: ({ row }) => (
-          <div className="max-w-[380px] truncate text-sm text-muted-foreground" title={row.original.title}>
+          <div className="max-w-[220px] truncate text-sm text-muted-foreground" title={row.original.title}>
             {row.original.title}
           </div>
         )
@@ -966,9 +968,10 @@ export function ProductsClient() {
         header: "",
         enableSorting: false,
         enableHiding: false,
+        size: 160,
         meta: {
           headerClassName: "text-right",
-          cellClassName: "text-right min-w-[280px]",
+          cellClassName: "text-right w-[160px]",
           pin: "right"
         },
         cell: ({ row }) => {

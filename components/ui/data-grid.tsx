@@ -145,6 +145,7 @@ export function DataGrid<TData extends object>({
   const selectionColumn = useMemo<DataGridColumnDef<TData>>(
     () => ({
       id: "__select__",
+      size: 48,
       header: ({ table }) => (
         <div className="flex justify-center">
           <IndeterminateCheckbox
@@ -277,7 +278,7 @@ export function DataGrid<TData extends object>({
 
   return (
     <div className={cn("w-full", className)}>
-      <div ref={scrollRef} className="w-full overflow-auto" style={{ maxHeight: maxBodyHeight }}>
+      <div ref={scrollRef} className="w-full overflow-y-auto overflow-x-hidden" style={{ maxHeight: maxBodyHeight }}>
         <table className="w-full caption-bottom text-sm">
           <thead className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 [&_tr]:border-b [&_tr]:border-border/60">
             {table.getHeaderGroups().map((headerGroup) => (
