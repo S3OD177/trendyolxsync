@@ -33,7 +33,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (pathname === "/login" || pathname.startsWith("/api/auth/pin")) {
+  if (
+    pathname === "/login" ||
+    pathname.startsWith("/api/auth/pin") ||
+    pathname.startsWith("/api/integrations/salla/oauth/callback")
+  ) {
     return NextResponse.next();
   }
 
