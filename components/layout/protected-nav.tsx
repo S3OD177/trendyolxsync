@@ -18,8 +18,9 @@ const navItems = [
   { href: "/api-test" as Route, label: "API Test", icon: FlaskConical }
 ] satisfies ReadonlyArray<{ href: Route; label: string; icon: ComponentType<{ className?: string }> }>;
 
-export function ProtectedNav({ mobile = false }: { mobile?: boolean }) {
+export function ProtectedNav({ mobile = false, collapsed = false }: { mobile?: boolean; collapsed?: boolean }) {
   const pathname = usePathname();
+  const compact = collapsed && !mobile;
 
   return (
     <>
@@ -31,15 +32,17 @@ export function ProtectedNav({ mobile = false }: { mobile?: boolean }) {
           <Link
             key={item.href}
             href={item.href}
+            title={compact ? item.label : undefined}
             className={cn(
               "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
+              compact && "justify-center px-2",
               isActive
                 ? "bg-primary/10 text-primary shadow-sm"
                 : "text-muted-foreground hover:bg-accent hover:text-foreground"
             )}
           >
             <Icon className={cn("h-[18px] w-[18px]", isActive && "text-primary")} />
-            {item.label}
+            <span className={cn(compact && "sr-only")}>{item.label}</span>
           </Link>
         );
       })}
