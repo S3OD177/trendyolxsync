@@ -75,6 +75,18 @@ describe("salla matcher", () => {
     expect(result.reason).toBe("NO_CONFIDENT_MATCH");
   });
 
+  it("uses model keywords when SKU is wrong", async () => {
+    vi.mocked(sallaClient.fetchProductBySku).mockResolvedValue(null);
+    vi.mocked(sallaClient.searchProductsByKeyword).mockResolvedValue([]);
+
+    await matchSallaProduct({
+      sku: "WRONG-1",
+      name: "Xiaomi Router AX1500 WiFi 6"
+    });
+
+    expect(sallaClient.searchProductsByKeyword).toHaveBeenCalledWith("ax1500", 1, 25);
+  });
+
   it("provides deterministic similarity scoring", () => {
     const exact = scoreNameSimilarity("iphone 15 pro max", "iphone 15 pro max");
     const partial = scoreNameSimilarity("iphone 15 pro max", "iphone 15 case");

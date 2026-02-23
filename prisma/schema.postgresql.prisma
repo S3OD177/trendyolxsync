@@ -66,6 +66,10 @@ model Product {
   category          String?
   active            Boolean          @default(true)
   currency          String           @default("SAR")
+  sallaQuantity     Int?
+  sallaPreTaxPrice  Decimal?
+  sallaCostPrice    Decimal?
+  sallaLastSyncedAt DateTime?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 

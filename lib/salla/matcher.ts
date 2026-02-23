@@ -2,6 +2,20 @@ import { sallaClient } from "@/lib/salla/client";
 import type { SallaMatchOutcome, SallaProductRecord } from "@/lib/salla/types";
 
 const MIN_CONFIDENCE_SCORE = 0.6;
+const STOPWORDS = new Set([
+  "with",
+  "and",
+  "for",
+  "the",
+  "a",
+  "an",
+  "of",
+  "to",
+  "from",
+  "in",
+  "on",
+  "by"
+]);
 
 export function normalizeMatchText(input: string) {
   return input
@@ -30,6 +44,43 @@ function tokenOverlapScore(left: string[], right: string[]) {
   const rightSet = new Set(right);
   const overlap = left.filter((token) => rightSet.has(token)).length;
   return overlap / left.length;
+}
+
+function buildKeywordQuery(name: string) {
+  const normalized = normalizeMatchText(name);
+  if (!normalized) {
+    return "";
+  }
+
+  const tokens = normalized.split(" ").filter((token) => token.length > 1);
+  const seen = new Set<string>();
+  const unique = tokens.filter((token) => {
+    if (seen.has(token)) {
+      return false;
+    }
+    seen.add(token);
+    return true;
+  });
+
+  const alphaNumericTokens = unique.filter((token) => /[a-z]/.test(token) && /\d/.test(token));
+  if (alphaNumericTokens.length > 0) {
+    return alphaNumericTokens[0];
+  }
+
+  const longNumericTokens = unique.filter((token) => /^\d+$/.test(token) && token.length >= 4);
+  if (longNumericTokens.length > 0) {
+    return longNumericTokens[0];
+  }
+
+  const strongTokens = unique.filter((token) => token.length >= 4 && !STOPWORDS.has(token));
+  if (strongTokens.length >= 2) {
+    return strongTokens.slice(0, 2).join(" ");
+  }
+  if (strongTokens.length === 1) {
+    return strongTokens[0];
+  }
+
+  return unique.slice(0, 3).join(" ");
 }
 
 export function scoreNameSimilarity(query: string, candidate: string) {
@@ -118,7 +169,8 @@ export async function matchSallaProduct(input: {
     };
   }
 
-  const candidates = await sallaClient.searchProductsByKeyword(name, 1, 25);
+  const keyword = buildKeywordQuery(name) || name;
+  const candidates = await sallaClient.searchProductsByKeyword(keyword, 1, 25);
   if (!candidates.length) {
     return {
       matched: false,

@@ -30,6 +30,31 @@ export async function persistSallaMatch(input: {
   sallaProduct: SallaProductRecord;
 }) {
   const costWithoutTax = selectCostWithoutTax(input.sallaProduct);
+  const productUpdate: {
+    sallaQuantity?: number;
+    sallaPreTaxPrice?: number;
+    sallaCostPrice?: number;
+    sallaLastSyncedAt: Date;
+  } = {
+    sallaLastSyncedAt: new Date()
+  };
+
+  if (input.sallaProduct.quantity !== null) {
+    productUpdate.sallaQuantity = input.sallaProduct.quantity;
+  }
+
+  if (input.sallaProduct.preTaxPrice !== null) {
+    productUpdate.sallaPreTaxPrice = input.sallaProduct.preTaxPrice;
+  }
+
+  if (input.sallaProduct.costPrice !== null) {
+    productUpdate.sallaCostPrice = input.sallaProduct.costPrice;
+  }
+
+  await prisma.product.update({
+    where: { id: input.productId },
+    data: productUpdate
+  });
 
   if (costWithoutTax !== null) {
     await prisma.productSettings.upsert({

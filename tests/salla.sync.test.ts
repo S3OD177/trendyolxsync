@@ -3,11 +3,12 @@ import { runSallaBatchSync, runSingleSallaMatch } from "@/lib/salla/sync";
 import { matchSallaProduct } from "@/lib/salla/matcher";
 import { prisma } from "@/lib/db/prisma";
 
-const { productSettingsUpsertMock, productFindUniqueMock, productFindManyMock } = vi.hoisted(() => {
+const { productSettingsUpsertMock, productFindUniqueMock, productFindManyMock, productUpdateMock } = vi.hoisted(() => {
   return {
     productSettingsUpsertMock: vi.fn(),
     productFindUniqueMock: vi.fn(),
-    productFindManyMock: vi.fn()
+    productFindManyMock: vi.fn(),
+    productUpdateMock: vi.fn()
   };
 });
 
@@ -15,7 +16,8 @@ vi.mock("@/lib/db/prisma", () => ({
   prisma: {
     product: {
       findUnique: productFindUniqueMock,
-      findMany: productFindManyMock
+      findMany: productFindManyMock,
+      update: productUpdateMock
     },
     productSettings: {
       upsert: productSettingsUpsertMock
@@ -64,6 +66,17 @@ describe("salla sync", () => {
         update: { costPrice: 120 }
       })
     );
+    expect(productUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "prod-1" },
+        data: expect.objectContaining({
+          sallaQuantity: 9,
+          sallaPreTaxPrice: 120,
+          sallaCostPrice: 95,
+          sallaLastSyncedAt: expect.any(Date)
+        })
+      })
+    );
   });
 
   it("supports dry run with persist=false", async () => {
@@ -93,6 +106,7 @@ describe("salla sync", () => {
 
     expect(result.persisted).toBe(false);
     expect(productSettingsUpsertMock).not.toHaveBeenCalled();
+    expect(productUpdateMock).not.toHaveBeenCalled();
   });
 
   it("does not write locally during dryRun batch sync", async () => {
@@ -139,6 +153,7 @@ describe("salla sync", () => {
     expect(summary.matched).toBe(1);
     expect(summary.updated).toBe(0);
     expect(productSettingsUpsertMock).not.toHaveBeenCalled();
+    expect(productUpdateMock).not.toHaveBeenCalled();
     expect(prisma.product.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { active: true }
