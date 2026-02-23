@@ -32,7 +32,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
       </aside>
 
       {/* Main Content */}
-      <div className="flex flex-1 flex-col sm:pl-[220px]">
+      <div className="flex min-w-0 flex-1 flex-col sm:pl-[220px]">
         {/* Mobile Header */}
         <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-border/60 bg-background/80 px-4 backdrop-blur-xl sm:hidden">
           <Sheet>
@@ -67,7 +67,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 animate-fade-in">
+        <main className="flex-1 min-w-0 overflow-x-hidden p-4 sm:p-6 lg:p-8 animate-fade-in">
           {children}
         </main>
       </div>
