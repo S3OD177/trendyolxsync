@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Play, CheckCircle2, XCircle, Clock, ChevronDown, ChevronRight, Zap } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Clock, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 interface EndpointDef {
@@ -515,62 +514,62 @@ export function ApiTestClient() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Trendyol API Tester</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Live checks for Trendyol and app APIs. Auto-refresh every {LIVE_REFRESH_INTERVAL_MS / 1000}s.
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            {lastRunAt ? `Last run: ${new Date(lastRunAt).toLocaleTimeString()}` : "Waiting for first run..."}
-          </p>
-        </div>
-        <Button onClick={runAll} disabled={runningAll} size="lg">
-          {runningAll ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Live Testing...
-            </>
-          ) : (
-            <>
-              <Zap className="mr-2 h-4 w-4" />
-              Run Now
-            </>
-          )}
-        </Button>
-      </div>
-
-      {total > 0 && (
-        <div className="grid grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-green-400">{working}</div>
-                <div className="text-xs text-muted-foreground mt-1">Working</div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-red-400">{failed}</div>
-                <div className="text-xs text-muted-foreground mt-1">Failed</div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold">{total}</div>
-              <div className="text-xs text-muted-foreground mt-1">Total Endpoints</div>
+      <div className="rounded-3xl border border-white/10 bg-black/60 p-6 shadow-[0_28px_80px_-60px_rgba(0,0,0,0.9)] md:p-8">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-muted-foreground">
+              Live status
             </div>
-          </CardContent>
-        </Card>
+            <h1 className="text-3xl font-semibold text-foreground">API Status</h1>
+            <p className="text-sm text-muted-foreground">
+              Live checks for Trendyol and app APIs. Auto-refresh every {LIVE_REFRESH_INTERVAL_MS / 1000}s.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {lastRunAt ? `Last run: ${new Date(lastRunAt).toLocaleTimeString()}` : "Waiting for first run..."}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <Badge variant="outline" className="border-white/15 bg-white/5 text-muted-foreground">
+              Auto refresh
+            </Badge>
+            <span className={runningAll ? "text-primary" : undefined}>
+              {runningAll ? "Running checks..." : "Idle"}
+            </span>
+          </div>
+        </div>
+
+        {total > 0 && (
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <Card className="border-white/10 bg-black/50">
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-green-400">{working}</div>
+                  <div className="text-xs text-muted-foreground mt-1">Working</div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-white/10 bg-black/50">
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-red-400">{failed}</div>
+                  <div className="text-xs text-muted-foreground mt-1">Failed</div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-white/10 bg-black/50">
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <div className="text-3xl font-bold">{total}</div>
+                  <div className="text-xs text-muted-foreground mt-1">Total Endpoints</div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
-      )}
 
       {config && (
-        <Card>
+        <Card className="border-white/10 bg-black/50">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-6 text-sm">
               <div>
@@ -595,7 +594,7 @@ export function ApiTestClient() {
               const isExpanded = expandedId === endpoint.id;
 
               return (
-                <Card key={endpoint.id} className="overflow-hidden">
+                <Card key={endpoint.id} className="overflow-hidden border-white/10 bg-black/50">
                   <div
                     className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-white/5 transition-colors"
                     onClick={() => setExpandedId(isExpanded ? null : endpoint.id)}
@@ -621,23 +620,6 @@ export function ApiTestClient() {
                       {result?.httpStatus && <HttpBadge code={result.httpStatus} />}
                       {result?.durationMs !== undefined && (
                         <span className="text-xs text-muted-foreground font-mono">{result.durationMs}ms</span>
-                      )}
-
-                      {!runningAll && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 px-2"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const sellerId = config?.sellerId ?? "";
-                            const barcode = config?.barcode ?? "";
-                            void runSingleTest(endpoint, sellerId, barcode);
-                          }}
-                          disabled={endpoint.target !== "local" && !config && !runningAll}
-                        >
-                          <Play className="h-3 w-3" />
-                        </Button>
                       )}
 
                       {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}

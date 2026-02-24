@@ -116,70 +116,78 @@ export function DashboardClient() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
-          <p className="mt-1 text-sm text-muted-foreground">High-level monitoring only. Product actions moved to Products page.</p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/products">
-            <Button variant="default" className="gap-2">
-              Open Products
-              <ArrowRight className="h-4 w-4" />
+      <div className="rounded-3xl border border-white/10 bg-black/60 p-6 shadow-[0_28px_80px_-60px_rgba(0,0,0,0.9)] md:p-8">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-muted-foreground">
+              <Activity className="h-3.5 w-3.5" />
+              Live monitoring
+            </div>
+            <h1 className="text-3xl font-semibold text-foreground">Dashboard</h1>
+            <p className="text-sm text-muted-foreground">
+              High-level monitoring only. Product actions moved to the Products workspace.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/products">
+              <Button variant="default" className="gap-2">
+                Open Products
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Button
+              size="sm"
+              onClick={triggerPoll}
+              disabled={polling || loading}
+              variant="outline"
+              className={cn("transition-all", polling && "border-primary/50 bg-primary/5")}
+            >
+              {polling ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-2 h-3.5 w-3.5" />}
+              {polling ? "Refreshing..." : "Refresh Data"}
             </Button>
-          </Link>
-          <Button
-            size="sm"
-            onClick={triggerPoll}
-            disabled={polling || loading}
-            variant="outline"
-            className={cn("transition-all", polling && "border-primary/50 bg-primary/5")}
-          >
-            {polling ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-2 h-3.5 w-3.5" />}
-            {polling ? "Refreshing..." : "Refresh Data"}
-          </Button>
+          </div>
         </div>
-      </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="group hover:border-border transition-all">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Monitored Products</CardTitle>
-            <div className="rounded-lg bg-primary/10 p-2">
-              <Boxes className="h-4 w-4 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-foreground">{loading ? "-" : summary.total}</div>
-            <p className="mt-1 text-xs text-muted-foreground">Active SKUs tracked</p>
-          </CardContent>
-        </Card>
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <Card className="border-white/10 bg-black/50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Monitored Products</CardTitle>
+              <div className="rounded-lg bg-primary/10 p-2">
+                <Boxes className="h-4 w-4 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-foreground">{loading ? "-" : summary.total}</div>
+              <p className="mt-1 text-xs text-muted-foreground">Active SKUs tracked</p>
+            </CardContent>
+          </Card>
 
-        <Card className="group hover:border-red-500/30 transition-all">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Lost BuyBox</CardTitle>
-            <div className="rounded-lg bg-red-500/10 p-2">
-              <ShieldAlert className="h-4 w-4 text-red-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-red-400">{loading ? "-" : summary.lost}</div>
-            <p className="mt-1 text-xs text-muted-foreground">Without BuyBox</p>
-          </CardContent>
-        </Card>
+          <Card className="border-white/10 bg-black/50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Lost BuyBox</CardTitle>
+              <div className="rounded-lg bg-red-500/10 p-2">
+                <ShieldAlert className="h-4 w-4 text-red-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-red-400">{loading ? "-" : summary.lost}</div>
+              <p className="mt-1 text-xs text-muted-foreground">Without BuyBox</p>
+            </CardContent>
+          </Card>
 
-        <Card className="group hover:border-amber-500/30 transition-all">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Margin Risk</CardTitle>
-            <div className="rounded-lg bg-amber-500/10 p-2">
-              <TriangleAlert className="h-4 w-4 text-amber-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-amber-400">{loading ? "-" : summary.risk}</div>
-            <p className="mt-1 text-xs text-muted-foreground">Margin below 5%</p>
-          </CardContent>
-        </Card>
+          <Card className="border-white/10 bg-black/50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Margin Risk</CardTitle>
+              <div className="rounded-lg bg-amber-500/10 p-2">
+                <TriangleAlert className="h-4 w-4 text-amber-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-amber-400">{loading ? "-" : summary.risk}</div>
+              <p className="mt-1 text-xs text-muted-foreground">Margin below 5%</p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {apiWarning ? (
@@ -191,11 +199,11 @@ export function DashboardClient() {
 
       <AnalyticsCharts />
 
-      <Card>
+      <Card className="border-white/10 bg-black/50">
         <CardHeader>
           <CardTitle>Products Workspace</CardTitle>
           <CardDescription>
-            Detailed product table, filters, and price actions are now separated to keep dashboard focused.
+            Detailed product table, filters, and price actions are separated to keep the dashboard focused.
           </CardDescription>
         </CardHeader>
         <CardContent>

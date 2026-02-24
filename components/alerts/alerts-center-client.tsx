@@ -311,62 +311,75 @@ export function AlertsCenterClient() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Card className="rounded-xl">
-          <CardContent className="p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Total Alerts</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{alerts.length}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-xl">
-          <CardContent className="p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Unread</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{unreadCount}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-xl">
-          <CardContent className="p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Critical</p>
-            <p className="mt-1 text-2xl font-semibold text-foreground">{criticalCount}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-xl">
-          <CardContent className="p-4">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Critical Unread</p>
-            <p className="mt-1 text-2xl font-semibold text-destructive">{criticalUnreadCount}</p>
-          </CardContent>
-        </Card>
+      <div className="rounded-3xl border border-white/10 bg-black/60 p-6 shadow-[0_28px_80px_-60px_rgba(0,0,0,0.9)] md:p-8">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-muted-foreground">
+              <CheckCheck className="h-3.5 w-3.5" />
+              Alert center
+            </div>
+            <h1 className="text-3xl font-semibold text-foreground">Alerts</h1>
+            <p className="text-sm text-muted-foreground">
+              Monitor critical events, missing data, and buybox risks in real time.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void loadAlerts()}
+              disabled={loading || refreshing}
+            >
+              <RefreshCw className={cn("mr-2 h-4 w-4", refreshing && "animate-spin")} />
+              Refresh
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void markVisibleRead()}
+              disabled={!hasUnreadVisible || markingIds.length > 0}
+            >
+              <CheckCheck className="mr-2 h-4 w-4" />
+              Mark Visible Read
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Card className="border-white/10 bg-black/50">
+            <CardContent className="p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Total Alerts</p>
+              <p className="mt-1 text-2xl font-semibold text-foreground">{alerts.length}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-white/10 bg-black/50">
+            <CardContent className="p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Unread</p>
+              <p className="mt-1 text-2xl font-semibold text-foreground">{unreadCount}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-white/10 bg-black/50">
+            <CardContent className="p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Critical</p>
+              <p className="mt-1 text-2xl font-semibold text-foreground">{criticalCount}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-white/10 bg-black/50">
+            <CardContent className="p-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Critical Unread</p>
+              <p className="mt-1 text-2xl font-semibold text-destructive">{criticalUnreadCount}</p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      <Card>
+      <Card className="border-white/10 bg-black/50">
         <CardHeader className="pb-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <CardTitle>Alerts</CardTitle>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {visibleAlerts.length} visible, {unreadVisibleIds.length} unread in current view.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void loadAlerts()}
-                disabled={loading || refreshing}
-              >
-                <RefreshCw className={cn("mr-2 h-4 w-4", refreshing && "animate-spin")} />
-                Refresh
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => void markVisibleRead()}
-                disabled={!hasUnreadVisible || markingIds.length > 0}
-              >
-                <CheckCheck className="mr-2 h-4 w-4" />
-                Mark Visible Read
-              </Button>
-            </div>
+          <div>
+            <CardTitle>Alert Stream</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {visibleAlerts.length} visible, {unreadVisibleIds.length} unread in current view.
+            </p>
           </div>
           <div className="grid gap-2 pt-2 md:grid-cols-2 xl:grid-cols-5">
             <div className="relative md:col-span-2 xl:col-span-2">
@@ -446,69 +459,71 @@ export function AlertsCenterClient() {
               No alerts found for current filters.
             </div>
           ) : (
-            <Table className="min-w-[980px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Severity</TableHead>
-                  <TableHead>Message</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visibleAlerts.map((alert) => {
-                  const missingFields = extractMissingFields(alert.metadataJson);
-                  return (
-                    <TableRow key={alert.id} className={getRowClass(alert.isRead)}>
-                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                        <div>{formatRelativeDate(alert.createdAt)}</div>
-                        <div className="mt-0.5 text-[11px]">{new Date(alert.createdAt).toLocaleString()}</div>
-                      </TableCell>
-                      <TableCell className="max-w-[220px]">
-                        <div className="font-semibold text-foreground">{alert.product.sku}</div>
-                        <div className="truncate text-xs text-muted-foreground" title={alert.product.title}>
-                          {alert.product.title}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{formatType(alert.type)}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={severityVariant[alert.severity]}>{alert.severity}</Badge>
-                      </TableCell>
-                      <TableCell className="max-w-[420px]">
-                        <div className="text-sm text-foreground">{alert.message}</div>
-                        {missingFields.length > 0 ? (
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {missingFields.map((field) => (
-                              <Badge key={field} variant="warning">
-                                Missing: {field}
-                              </Badge>
-                            ))}
+            <div className="w-full overflow-x-auto">
+              <Table className="min-w-[980px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Time</TableHead>
+                    <TableHead>Product</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Severity</TableHead>
+                    <TableHead>Message</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visibleAlerts.map((alert) => {
+                    const missingFields = extractMissingFields(alert.metadataJson);
+                    return (
+                      <TableRow key={alert.id} className={getRowClass(alert.isRead)}>
+                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                          <div>{formatRelativeDate(alert.createdAt)}</div>
+                          <div className="mt-0.5 text-[11px]">{new Date(alert.createdAt).toLocaleString()}</div>
+                        </TableCell>
+                        <TableCell className="max-w-[220px]">
+                          <div className="font-semibold text-foreground">{alert.product.sku}</div>
+                          <div className="truncate text-xs text-muted-foreground" title={alert.product.title}>
+                            {alert.product.title}
                           </div>
-                        ) : null}
-                      </TableCell>
-                      <TableCell>
-                        {alert.isRead ? <Badge variant="secondary">Read</Badge> : <Badge>New</Badge>}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={alert.isRead || isMarking(alert.id)}
-                          onClick={() => void markSingleRead(alert.id)}
-                        >
-                          {isMarking(alert.id) ? "Saving..." : "Mark Read"}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{formatType(alert.type)}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={severityVariant[alert.severity]}>{alert.severity}</Badge>
+                        </TableCell>
+                        <TableCell className="max-w-[420px]">
+                          <div className="text-sm text-foreground">{alert.message}</div>
+                          {missingFields.length > 0 ? (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {missingFields.map((field) => (
+                                <Badge key={field} variant="warning">
+                                  Missing: {field}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : null}
+                        </TableCell>
+                        <TableCell>
+                          {alert.isRead ? <Badge variant="secondary">Read</Badge> : <Badge>New</Badge>}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={alert.isRead || isMarking(alert.id)}
+                            onClick={() => void markSingleRead(alert.id)}
+                          >
+                            {isMarking(alert.id) ? "Saving..." : "Mark Read"}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>

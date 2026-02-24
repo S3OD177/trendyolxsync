@@ -15,7 +15,7 @@ const navItems = [
   { href: "/shipments" as Route, label: "Shipments", icon: Truck },
   { href: "/alerts" as Route, label: "Alerts", icon: Bell },
   { href: "/settings" as Route, label: "Settings", icon: Settings },
-  { href: "/api-test" as Route, label: "API Test", icon: FlaskConical }
+  { href: "/api-test" as Route, label: "API Status", icon: FlaskConical }
 ] satisfies ReadonlyArray<{ href: Route; label: string; icon: ComponentType<{ className?: string }> }>;
 
 export function ProtectedNav({ mobile = false, collapsed = false }: { mobile?: boolean; collapsed?: boolean }) {

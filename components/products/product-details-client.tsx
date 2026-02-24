@@ -210,47 +210,54 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="rounded-3xl border border-white/10 bg-black/60 p-6 shadow-[0_28px_80px_-60px_rgba(0,0,0,0.9)] md:p-8">
         <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3"
+          href="/products"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Dashboard
+          Back to Products
         </Link>
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-semibold text-foreground">{payload.product.title}</h1>
-          {s.autoPilot && (
-            <Badge
-              variant="default"
-              className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25 border-emerald-500/20"
-            >
-              Auto-Pilot ON
-            </Badge>
-          )}
+        <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-semibold text-foreground">{payload.product.title}</h1>
+              {s.autoPilot && (
+                <Badge
+                  variant="default"
+                  className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25 border-emerald-500/20"
+                >
+                  Auto-Pilot ON
+                </Badge>
+              )}
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">SKU: {payload.product.sku}</p>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Break-even floor: <span className="text-foreground font-medium">{formatSar(payload.breakEven)}</span>
+          </div>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">SKU: {payload.product.sku}</p>
-      </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Enforced Floor Price</p>
-            <p className="text-2xl font-bold text-foreground mt-1">{formatSar(payload.breakEven)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Barcode</p>
-            <p className="text-2xl font-bold text-foreground mt-1">{payload.product.barcode || "-"}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Listing ID</p>
-            <p className="text-2xl font-bold text-foreground mt-1">{payload.product.trendyolProductId || "-"}</p>
-          </CardContent>
-        </Card>
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <Card className="border-white/10 bg-black/50">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Enforced Floor Price</p>
+              <p className="text-2xl font-bold text-foreground mt-1">{formatSar(payload.breakEven)}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-white/10 bg-black/50">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Barcode</p>
+              <p className="text-2xl font-bold text-foreground mt-1">{payload.product.barcode || "-"}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-white/10 bg-black/50">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">Listing ID</p>
+              <p className="text-2xl font-bold text-foreground mt-1">{payload.product.trendyolProductId || "-"}</p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <CompetitorPriceChart productId={productId} />

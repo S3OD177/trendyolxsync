@@ -272,88 +272,66 @@ export function SettingsClient() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Manage integrations and global pricing defaults.</p>
-      </div>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <div className="space-y-1">
-            <CardTitle className="text-lg">Integration Status</CardTitle>
-            <p className="text-sm text-muted-foreground">Validate credentials and API connections.</p>
-          </div>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-2">
-          {warning ? (
-            <div className="md:col-span-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-2.5 text-sm text-amber-400">
-              {warning}
+      <div className="rounded-3xl border border-white/10 bg-black/60 p-6 shadow-[0_28px_80px_-60px_rgba(0,0,0,0.9)] md:p-8">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-muted-foreground">
+              <Badge variant="outline" className="px-2 py-0.5 text-[10px] uppercase tracking-widest">
+                Settings
+              </Badge>
+              Integrations & pricing
             </div>
-          ) : null}
+            <h1 className="text-3xl font-semibold text-foreground">Settings</h1>
+            <p className="text-sm text-muted-foreground">Manage integrations, pricing defaults, and sync status.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => loadSallaStatus()}
+              disabled={refreshingSallaStatus}
+            >
+              {refreshingSallaStatus ? "Refreshing..." : "Refresh Status"}
+            </Button>
+          </div>
+        </div>
 
-          <div className="surface-muted space-y-2 p-4">
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-foreground">Trendyol API</span>
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <div className="rounded-2xl border border-white/10 bg-black/50 p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Trendyol API</p>
+            <div className="mt-2 flex items-center gap-2">
               <Badge variant={integrations.trendyolConfigured ? "success" : "destructive"}>
                 {integrations.trendyolConfigured ? "Configured" : "Missing"}
               </Badge>
             </div>
+            <p className="mt-2 text-xs text-muted-foreground">Primary marketplace connection.</p>
           </div>
-
-          <div className="surface-muted space-y-3 p-4">
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-foreground">Salla Integration</span>
+          <div className="rounded-2xl border border-white/10 bg-black/50 p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Salla Integration</p>
+            <div className="mt-2 flex items-center gap-2">
               <Badge variant={sallaConnected ? "success" : "destructive"}>
                 {sallaConnected ? "Connected" : "Disconnected"}
               </Badge>
             </div>
-
-            <div className="space-y-1 text-xs text-muted-foreground">
-              <p>
-                Auth source: <span className="font-medium text-foreground">{sallaSource}</span>
-              </p>
-              <p>
-                OAuth ready:{" "}
-                <span className="font-medium text-foreground">{sallaStatus?.oauthReady ? "Yes" : "No"}</span>
-              </p>
-              <p>
-                Cost source: <span className="font-medium text-foreground">{sallaStatus?.costSource ?? "PRE_TAX"}</span>
-              </p>
-              <p>
-                Token expiry:{" "}
-                <span className="font-medium text-foreground">
-                  {formatDateTime(sallaStatus?.credential?.expiresAt)}
-                </span>
-              </p>
-              {sallaStatus?.error ? <p className="text-red-400">{sallaStatus.error}</p> : null}
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={connectSallaOAuth} disabled={!sallaStatus?.oauthReady}>
-                Connect OAuth
-              </Button>
-              <Button size="sm" onClick={syncSallaProducts} disabled={!sallaConnected || syncingSalla}>
-                {syncingSalla ? "Syncing..." : "Sync Salla Products"}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => loadSallaStatus()}
-                disabled={refreshingSallaStatus}
-              >
-                {refreshingSallaStatus ? "Refreshing..." : "Refresh Status"}
-              </Button>
-            </div>
+            <p className="mt-2 text-xs text-muted-foreground">Auth source: {sallaSource}</p>
           </div>
-        </CardContent>
-      </Card>
+          <div className="rounded-2xl border border-white/10 bg-black/50 p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Cost Source</p>
+            <p className="mt-2 text-2xl font-semibold text-foreground">{sallaStatus?.costSource ?? "PRE_TAX"}</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Token expiry: {formatDateTime(sallaStatus?.credential?.expiresAt)}
+            </p>
+          </div>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Global Pricing Defaults (SAR)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={submit}>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        <Card className="border-white/10 bg-black/50">
+          <CardHeader>
+            <CardTitle className="text-lg">Global Pricing Defaults (SAR)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form className="grid gap-4 md:grid-cols-2" onSubmit={submit}>
             <div>
               <Label>Fees (%)</Label>
               <Input
@@ -400,9 +378,61 @@ export function SettingsClient() {
                 {saving ? "Saving..." : "Save Settings"}
               </Button>
             </div>
-          </form>
-        </CardContent>
-      </Card>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card className="border-white/10 bg-black/50">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <div className="space-y-1">
+              <CardTitle className="text-lg">Salla Integration</CardTitle>
+              <p className="text-sm text-muted-foreground">Validate credentials and run read-only sync.</p>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {warning ? (
+              <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-2.5 text-sm text-amber-400">
+                {warning}
+              </div>
+            ) : null}
+
+            <div className="surface-muted space-y-3 p-4">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-foreground">Connection</span>
+                <Badge variant={sallaConnected ? "success" : "destructive"}>
+                  {sallaConnected ? "Connected" : "Disconnected"}
+                </Badge>
+              </div>
+
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p>
+                  OAuth ready:{" "}
+                  <span className="font-medium text-foreground">{sallaStatus?.oauthReady ? "Yes" : "No"}</span>
+                </p>
+                <p>
+                  Cost source: <span className="font-medium text-foreground">{sallaStatus?.costSource ?? "PRE_TAX"}</span>
+                </p>
+                <p>
+                  Token expiry:{" "}
+                  <span className="font-medium text-foreground">
+                    {formatDateTime(sallaStatus?.credential?.expiresAt)}
+                  </span>
+                </p>
+                {sallaStatus?.error ? <p className="text-red-400">{sallaStatus.error}</p> : null}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={connectSallaOAuth} disabled={!sallaStatus?.oauthReady}>
+                  Connect OAuth
+                </Button>
+                <Button size="sm" onClick={syncSallaProducts} disabled={!sallaConnected || syncingSalla}>
+                  {syncingSalla ? "Syncing..." : "Sync Salla Products"}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

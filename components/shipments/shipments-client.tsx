@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -129,47 +129,87 @@ export default function ShipmentsClient() {
         }
     };
 
+    const summary = useMemo(() => {
+        const total = data.length;
+        const inProgress = data.filter((row) => ["Created", "Picking", "Invoiced"].includes(row.status)).length;
+        const shipped = data.filter((row) => row.status === "Shipped").length;
+        const delivered = data.filter((row) => row.status === "Delivered").length;
+        const issues = data.filter((row) => ["Cancelled", "Returned"].includes(row.status)).length;
+        return { total, inProgress, shipped, delivered, issues };
+    }, [data]);
+
     return (
         <div className="space-y-6">
-            {/* Page Header */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <h1 className="text-2xl font-semibold text-foreground flex items-center gap-3">
-                        Shipments
-                        <Badge variant="outline" className="ml-2 gap-1.5 py-1 px-3 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-normal">
+            <div className="rounded-3xl border border-white/10 bg-black/60 p-6 shadow-[0_28px_80px_-60px_rgba(0,0,0,0.9)] md:p-8">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div className="space-y-2">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-muted-foreground">
+                            <Radio className="h-3.5 w-3.5" />
+                            Live shipments
+                        </div>
+                        <h1 className="text-3xl font-semibold text-foreground">Shipments</h1>
+                        <p className="text-sm text-muted-foreground">
+                            Track and manage Trendyol shipment packages in near real time.
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <Badge
+                            variant="outline"
+                            className="gap-1.5 py-1 px-3 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-normal"
+                        >
                             <span className="relative flex h-2 w-2">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                             </span>
                             Live Updates
                         </Badge>
-                    </h1>
-                    <p className="mt-1 text-sm text-muted-foreground flex items-center gap-2">
-                        <span>Track and manage your Trendyol shipments.</span>
-                        {data.length > 0 && <span className="hidden sm:inline">•</span>}
-                        {data.length > 0 && <span>{data.length} packages found.</span>}
-                    </p>
+                        <span className="text-xs text-muted-foreground font-medium tabular-nums">
+                            Next update in {timeLeft}s
+                        </span>
+                        <Button
+                            size="sm"
+                            onClick={syncShipments}
+                            disabled={syncing}
+                            variant="outline"
+                            className={cn("transition-all", syncing && "border-primary/50 bg-primary/5")}
+                        >
+                            <RefreshCw className={cn("mr-2 h-3.5 w-3.5", (syncing || isRefetching) && "animate-spin")} />
+                            {syncing ? "Syncing..." : "Sync Now"}
+                        </Button>
+                    </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground font-medium tabular-nums hidden sm:inline-block">
-                        Next update in {timeLeft}s
-                    </span>
-                    <Button
-                        size="sm"
-                        onClick={syncShipments}
-                        disabled={syncing}
-                        variant="outline"
-                        className={cn("transition-all", syncing && "border-primary/50 bg-primary/5")}
-                    >
-                        <RefreshCw className={cn("mr-2 h-3.5 w-3.5", (syncing || isRefetching) && "animate-spin")} />
-                        {syncing ? "Syncing..." : "Sync Now"}
-                    </Button>
+
+                <div className="mt-6 grid gap-4 md:grid-cols-5">
+                    <div className="rounded-2xl border border-white/10 bg-black/50 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Total</p>
+                        <p className="mt-2 text-2xl font-semibold text-foreground">{summary.total}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-black/50 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">In Progress</p>
+                        <p className="mt-2 text-2xl font-semibold text-amber-400">{summary.inProgress}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-black/50 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Shipped</p>
+                        <p className="mt-2 text-2xl font-semibold text-blue-400">{summary.shipped}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-black/50 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Delivered</p>
+                        <p className="mt-2 text-2xl font-semibold text-emerald-400">{summary.delivered}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-black/50 p-4">
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Issues</p>
+                        <p className="mt-2 text-2xl font-semibold text-red-400">{summary.issues}</p>
+                    </div>
                 </div>
             </div>
 
-            <Card>
+            <Card className="border-white/10 bg-black/50">
                 <CardContent className="p-6">
-                    <div className="mb-4">
+                    <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <h2 className="text-lg font-semibold text-foreground">Shipment Packages</h2>
+                            <p className="text-sm text-muted-foreground">{data.length} packages found.</p>
+                        </div>
                         <Input
                             placeholder="Search package number, order number, tracking..."
                             value={search}
@@ -178,7 +218,7 @@ export default function ShipmentsClient() {
                         />
                     </div>
 
-                    <div className="rounded-xl border border-white/10 overflow-hidden">
+                    <div className="w-full overflow-x-auto rounded-xl border border-white/10">
                         <Table>
                             <TableHeader>
                                 <TableRow>

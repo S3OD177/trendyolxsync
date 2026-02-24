@@ -4,7 +4,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RowSelectionState, SortingState, VisibilityState } from "@tanstack/react-table";
-import { Activity, HelpCircle, Loader2, RefreshCw, TrendingDown, X } from "lucide-react";
+import { Activity, Boxes, HelpCircle, Loader2, RefreshCw, ShieldAlert, TrendingDown, X } from "lucide-react";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -463,6 +463,14 @@ export function ProductsClient() {
     },
     []
   );
+
+  const summary = useMemo(() => {
+    const total = rows.length;
+    const lost = rows.filter((row) => row.buyboxStatus === "LOSE").length;
+    const risk = rows.filter((row) => row.lowMarginRisk).length;
+    const missingPrice = rows.filter((row) => row.ourPrice === null).length;
+    return { total, lost, risk, missingPrice };
+  }, [rows]);
 
   const filteredRows = useMemo(() => {
     return rows.filter((row) => {
@@ -1070,30 +1078,71 @@ export function ProductsClient() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">Products</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Fast table for pricing actions and monitoring.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground font-medium tabular-nums hidden sm:inline-block">
-            {inlineEditRowId ? "Auto-refresh paused while editing" : `Next update in ${timeLeft}s`}
-          </span>
-          {batchState.running ? (
-            <span className="text-xs text-primary font-medium tabular-nums">
-              Batch {batchState.completed}/{batchState.total}
+      <div className="rounded-3xl border border-white/10 bg-black/60 p-6 shadow-[0_28px_80px_-60px_rgba(0,0,0,0.9)] md:p-8">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-muted-foreground">
+              <Activity className="h-3.5 w-3.5" />
+              Pricing operations
+            </div>
+            <h1 className="text-3xl font-semibold text-foreground">Products</h1>
+            <p className="text-sm text-muted-foreground">Fast table for pricing actions, monitoring, and bulk suggestions.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs text-muted-foreground font-medium tabular-nums">
+              {inlineEditRowId ? "Auto-refresh paused while editing" : `Next update in ${timeLeft}s`}
             </span>
-          ) : null}
-          <Button
-            size="sm"
-            onClick={() => triggerPoll(true)}
-            disabled={polling || batchState.running}
-            variant="outline"
-            className={cn("transition-all", polling && "border-primary/50 bg-primary/5")}
-          >
-            {polling ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-2 h-3.5 w-3.5" />}
-            {polling ? "Updating..." : "Refresh Data"}
-          </Button>
+            {batchState.running ? (
+              <span className="text-xs text-primary font-medium tabular-nums">
+                Batch {batchState.completed}/{batchState.total}
+              </span>
+            ) : null}
+            <Button
+              size="sm"
+              onClick={() => triggerPoll(true)}
+              disabled={polling || batchState.running}
+              variant="outline"
+              className={cn("transition-all", polling && "border-primary/50 bg-primary/5")}
+            >
+              {polling ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-2 h-3.5 w-3.5" />}
+              {polling ? "Updating..." : "Refresh Data"}
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-4">
+          <div className="rounded-2xl border border-white/10 bg-black/50 p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Total</p>
+              <Boxes className="h-4 w-4 text-primary" />
+            </div>
+            <p className="mt-2 text-2xl font-semibold text-foreground">{loading ? "-" : summary.total}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Active SKUs monitored</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-black/50 p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Lost BuyBox</p>
+              <ShieldAlert className="h-4 w-4 text-red-400" />
+            </div>
+            <p className="mt-2 text-2xl font-semibold text-red-400">{loading ? "-" : summary.lost}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Requires action</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-black/50 p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Margin Risk</p>
+              <TrendingDown className="h-4 w-4 text-amber-400" />
+            </div>
+            <p className="mt-2 text-2xl font-semibold text-amber-400">{loading ? "-" : summary.risk}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Below safety threshold</p>
+          </div>
+          <div className="rounded-2xl border border-white/10 bg-black/50 p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Missing Price</p>
+              <HelpCircle className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <p className="mt-2 text-2xl font-semibold text-foreground">{loading ? "-" : summary.missingPrice}</p>
+            <p className="mt-1 text-xs text-muted-foreground">No price on file</p>
+          </div>
         </div>
       </div>
 
@@ -1104,141 +1153,149 @@ export function ProductsClient() {
         </div>
       ) : null}
 
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle>Product List</CardTitle>
+      <Card className="border-white/10 bg-black/50">
+        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <CardTitle>Product Command Center</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">Search, filter, and manage pricing actions in one place.</p>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Showing {filteredRows.length} of {rows.length} products
+          </div>
         </CardHeader>
         <CardContent className="pt-0">
-          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex-1 max-w-md">
-              <Input
-                ref={searchInputRef}
-                placeholder="Search SKU, title, or barcode... ( / )"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex-1 max-w-md">
+                <Input
+                  ref={searchInputRef}
+                  placeholder="Search SKU, title, or barcode... ( / )"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Checkbox
+                  checked={lostOnly}
+                  onChange={(event) => setLostOnly(event.target.checked)}
+                  id="lost-only"
+                  label="Lost BuyBox"
+                />
+                <Checkbox
+                  checked={lowMarginRisk}
+                  onChange={(event) => setLowMarginRisk(event.target.checked)}
+                  id="low-margin"
+                  label="Low Margin"
+                />
+
+                <Select value={density} onValueChange={(value) => setDensity(value as ProductsTableDensity)}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="Density" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="comfortable">Comfortable</SelectItem>
+                    <SelectItem value="compact">Compact</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <details className="relative">
+                  <summary className="list-none cursor-pointer rounded-md border border-white/10 bg-black/50 px-3 py-2 text-sm">
+                    Columns
+                  </summary>
+                  <div className="absolute right-0 z-30 mt-2 w-48 rounded-md border border-white/10 bg-black/90 p-2 shadow-md backdrop-blur-xl">
+                    {OPTIONAL_COLUMNS.map((column) => (
+                      <label key={column.id} className="flex items-center gap-2 py-1 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={columnVisibility[column.id] ?? true}
+                          onChange={(event) => {
+                            setColumnVisibility((current) => ({
+                              ...current,
+                              [column.id]: event.target.checked
+                            }));
+                          }}
+                        />
+                        <span>{column.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </details>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Checkbox
-                checked={lostOnly}
-                onChange={(event) => setLostOnly(event.target.checked)}
-                id="lost-only"
-                label="Lost BuyBox"
-              />
-              <Checkbox
-                checked={lowMarginRisk}
-                onChange={(event) => setLowMarginRisk(event.target.checked)}
-                id="low-margin"
-                label="Low Margin"
-              />
-
-              <Select value={density} onValueChange={(value) => setDensity(value as ProductsTableDensity)}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Density" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="comfortable">Comfortable</SelectItem>
-                  <SelectItem value="compact">Compact</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <details className="relative">
-                <summary className="list-none cursor-pointer rounded-md border border-white/10 bg-black/50 px-3 py-2 text-sm">
-                  Columns
-                </summary>
-                <div className="absolute right-0 z-30 mt-2 w-48 rounded-md border border-white/10 bg-black/90 p-2 shadow-md backdrop-blur-xl">
-                  {OPTIONAL_COLUMNS.map((column) => (
-                    <label key={column.id} className="flex items-center gap-2 py-1 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={columnVisibility[column.id] ?? true}
-                        onChange={(event) => {
-                          setColumnVisibility((current) => ({
-                            ...current,
-                            [column.id]: event.target.checked
-                          }));
-                        }}
-                      />
-                      <span>{column.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </details>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="text-muted-foreground">
+                {hasActiveFilters ? "Filters active" : "No filters applied"}
+              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                {hasActiveFilters ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => {
+                      setSearch("");
+                      setLostOnly(false);
+                      setLowMarginRisk(false);
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                ) : null}
+                {lostOnly ? (
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setLostOnly(false)}>
+                    Lost BuyBox
+                    <X className="ml-1 h-3 w-3" />
+                  </Button>
+                ) : null}
+                {lowMarginRisk ? (
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setLowMarginRisk(false)}>
+                    Low Margin
+                    <X className="ml-1 h-3 w-3" />
+                  </Button>
+                ) : null}
+                {debouncedSearch.trim() ? (
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setSearch("")}>
+                    Search: {debouncedSearch.trim().slice(0, 24)}
+                    <X className="ml-1 h-3 w-3" />
+                  </Button>
+                ) : null}
+              </div>
             </div>
-          </div>
 
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <span className="text-muted-foreground">
-              Showing {filteredRows.length} of {rows.length} products
-            </span>
-            <div className="flex flex-wrap items-center gap-2">
-              {hasActiveFilters ? (
+            <div className="hidden lg:flex items-center justify-between rounded-md border border-white/10 bg-white/4 px-3 py-2">
+              <span className="text-xs text-muted-foreground tabular-nums">{selectedRows.length} selected</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    void handleSuggestSelected();
+                  }}
+                  disabled={selectedRows.length === 0 || batchState.running}
+                >
+                  {batchState.running ? (
+                    <>
+                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                      Suggesting...
+                    </>
+                  ) : (
+                    "Suggest Selected"
+                  )}
+                </Button>
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-7 px-2 text-xs"
-                  onClick={() => {
-                    setSearch("");
-                    setLostOnly(false);
-                    setLowMarginRisk(false);
-                  }}
+                  onClick={clearSelection}
+                  disabled={selectedRows.length === 0 || batchState.running}
                 >
-                  Clear filters
+                  Clear Selection
                 </Button>
-              ) : null}
-              {lostOnly ? (
-                <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setLostOnly(false)}>
-                  Lost BuyBox
-                  <X className="ml-1 h-3 w-3" />
-                </Button>
-              ) : null}
-              {lowMarginRisk ? (
-                <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setLowMarginRisk(false)}>
-                  Low Margin
-                  <X className="ml-1 h-3 w-3" />
-                </Button>
-              ) : null}
-              {debouncedSearch.trim() ? (
-                <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setSearch("")}>
-                  Search: {debouncedSearch.trim().slice(0, 24)}
-                  <X className="ml-1 h-3 w-3" />
-                </Button>
-              ) : null}
+              </div>
             </div>
           </div>
 
-          <div className="mb-4 hidden lg:flex items-center justify-between rounded-md border border-white/10 bg-white/4 px-3 py-2">
-            <span className="text-xs text-muted-foreground tabular-nums">{selectedRows.length} selected</span>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                onClick={() => {
-                  void handleSuggestSelected();
-                }}
-                disabled={selectedRows.length === 0 || batchState.running}
-              >
-                {batchState.running ? (
-                  <>
-                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-                    Suggesting...
-                  </>
-                ) : (
-                  "Suggest Selected"
-                )}
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={clearSelection}
-                disabled={selectedRows.length === 0 || batchState.running}
-              >
-                Clear Selection
-              </Button>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-white/10 bg-black/45 overflow-hidden">
+          <div className="mt-4 rounded-xl border border-white/10 bg-black/45 overflow-hidden">
             {loading && rows.length === 0 ? (
               <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
