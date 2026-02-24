@@ -349,7 +349,7 @@ export function ProductDetailsClient({ productId }: { productId: string }) {
                   <span className="text-muted-foreground">Total Fees + Shipping</span>
                   <span className="font-medium text-foreground">{formatSar(simulationResult.totalFees)}</span>
                 </div>
-                <div className="border-t border-border/40 pt-2 flex justify-between py-1.5">
+                <div className="border-t border-white/10 pt-2 flex justify-between py-1.5">
                   <span className="font-medium text-foreground">Profit</span>
                   <span className={`font-bold ${simulationResult.profit >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                     {formatSar(simulationResult.profit)} ({simulationResult.profitPct.toFixed(2)}%)

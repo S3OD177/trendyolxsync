@@ -853,7 +853,7 @@ export function ProductsClient() {
           return (
             <span
               className={cn(
-                "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-secondary tabular-nums",
+                "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-white/5 tabular-nums",
                 positive ? "text-destructive" : "text-emerald-500"
               )}
             >
@@ -1144,10 +1144,10 @@ export function ProductsClient() {
               </Select>
 
               <details className="relative">
-                <summary className="list-none cursor-pointer rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <summary className="list-none cursor-pointer rounded-md border border-white/10 bg-black/50 px-3 py-2 text-sm">
                   Columns
                 </summary>
-                <div className="absolute right-0 z-30 mt-2 w-48 rounded-md border bg-popover p-2 shadow-md">
+                <div className="absolute right-0 z-30 mt-2 w-48 rounded-md border border-white/10 bg-black/90 p-2 shadow-md backdrop-blur-xl">
                   {OPTIONAL_COLUMNS.map((column) => (
                     <label key={column.id} className="flex items-center gap-2 py-1 text-sm">
                       <input
@@ -1208,7 +1208,7 @@ export function ProductsClient() {
             </div>
           </div>
 
-          <div className="mb-4 hidden lg:flex items-center justify-between rounded-md border border-border/50 bg-muted/30 px-3 py-2">
+          <div className="mb-4 hidden lg:flex items-center justify-between rounded-md border border-white/10 bg-white/4 px-3 py-2">
             <span className="text-xs text-muted-foreground tabular-nums">{selectedRows.length} selected</span>
             <div className="flex items-center gap-2">
               <Button
@@ -1238,7 +1238,7 @@ export function ProductsClient() {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border/40 bg-card/50 overflow-hidden">
+          <div className="rounded-xl border border-white/10 bg-black/45 overflow-hidden">
             {loading && rows.length === 0 ? (
               <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

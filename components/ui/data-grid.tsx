@@ -71,7 +71,7 @@ function IndeterminateCheckbox({ indeterminate, className, ...props }: Indetermi
       ref={ref}
       type="checkbox"
       className={cn(
-        "h-[16px] w-[16px] rounded border border-input bg-secondary/50 text-primary accent-primary focus:ring-primary/30 cursor-pointer",
+        "h-[16px] w-[16px] rounded border border-white/10 bg-black/40 text-primary accent-primary focus:ring-primary/30 cursor-pointer",
         className
       )}
       {...props}
@@ -112,8 +112,8 @@ function getPinnedClassName(column: Column<any, unknown>, extra?: string) {
   }
 
   return cn(
-    "bg-background/95 supports-[backdrop-filter]:bg-background/90",
-    pinned === "left" ? "border-r border-border/70" : "border-l border-border/70",
+    "bg-black/75 supports-[backdrop-filter]:bg-black/70 backdrop-blur-xl",
+    pinned === "left" ? "border-r border-white/10" : "border-l border-white/10",
     extra
   );
 }
@@ -280,9 +280,9 @@ export function DataGrid<TData extends object>({
     <div className={cn("w-full", className)}>
       <div ref={scrollRef} className="w-full overflow-y-auto overflow-x-hidden" style={{ maxHeight: maxBodyHeight }}>
         <table className="w-full caption-bottom text-sm">
-          <thead className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 [&_tr]:border-b [&_tr]:border-border/60">
+          <thead className="sticky top-0 z-20 bg-black/70 backdrop-blur-2xl supports-[backdrop-filter]:bg-black/60 [&_tr]:border-b [&_tr]:border-white/10">
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="border-b border-border/40">
+              <tr key={headerGroup.id} className="border-b border-white/10">
                 {headerGroup.headers.map((header) => {
                   const isSorted = header.column.getIsSorted();
                   const canSort = header.column.getCanSort();
@@ -348,8 +348,8 @@ export function DataGrid<TData extends object>({
                       onKeyDown={(event) => handleRowArrowNav(event, row.id)}
                       data-state={row.getIsSelected() ? "selected" : undefined}
                       className={cn(
-                        "group border-b border-border/40 transition-colors hover:bg-accent/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
-                        focusedRowId === row.id && "bg-primary/5",
+                        "group border-b border-white/10 transition-colors hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+                        focusedRowId === row.id && "bg-primary/10",
                         getRowClassName?.(row.original)
                       )}
                       style={{ height: `${rowHeight}px` }}
@@ -361,7 +361,7 @@ export function DataGrid<TData extends object>({
                             key={cell.id}
                             className={cn(
                               "px-4 align-middle relative",
-                              getPinnedClassName(cell.column, "group-hover:bg-accent/50"),
+                              getPinnedClassName(cell.column, "group-hover:bg-white/5"),
                               density === "compact" ? "py-1.5" : "py-2.5",
                               meta?.cellClassName
                             )}
@@ -393,8 +393,8 @@ export function DataGrid<TData extends object>({
                   onKeyDown={(event) => handleRowArrowNav(event, row.id)}
                   data-state={row.getIsSelected() ? "selected" : undefined}
                   className={cn(
-                    "group border-b border-border/40 transition-colors hover:bg-accent/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
-                    focusedRowId === row.id && "bg-primary/5",
+                    "group border-b border-white/10 transition-colors hover:bg-white/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+                    focusedRowId === row.id && "bg-primary/10",
                     getRowClassName?.(row.original)
                   )}
                 >
@@ -405,7 +405,7 @@ export function DataGrid<TData extends object>({
                         key={cell.id}
                         className={cn(
                           "px-4 align-middle relative",
-                          getPinnedClassName(cell.column, "group-hover:bg-accent/50"),
+                          getPinnedClassName(cell.column, "group-hover:bg-white/5"),
                           density === "compact" ? "py-1.5" : "py-2.5",
                           meta?.cellClassName
                         )}

@@ -62,7 +62,7 @@ export function PinLoginForm({ nextPath = "/dashboard" }: { nextPath?: string })
           </div>
         </div>
 
-        <Card className="border-border/60">
+        <Card className="border-white/10">
           <CardContent className="p-6">
             <form className="space-y-4" onSubmit={onSubmit}>
               <Input

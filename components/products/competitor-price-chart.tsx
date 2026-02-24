@@ -124,7 +124,7 @@ export function CompetitorPriceChart({ productId }: CompetitorPriceChartProps) {
                                     if (active && payload && payload.length) {
                                         const item = payload[0].payload as CompetitorLog;
                                         return (
-                                            <div className="rounded-lg border bg-background p-2 shadow-sm">
+                                            <div className="rounded-lg border border-white/10 bg-black/80 p-2 shadow-sm backdrop-blur-xl">
                                                 <div className="grid grid-cols-2 gap-2">
                                                     <div className="flex flex-col">
                                                         <span className="text-[0.70rem] uppercase text-muted-foreground">

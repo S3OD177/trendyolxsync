@@ -597,7 +597,7 @@ export function ApiTestClient() {
               return (
                 <Card key={endpoint.id} className="overflow-hidden">
                   <div
-                    className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-white/5 transition-colors"
                     onClick={() => setExpandedId(isExpanded ? null : endpoint.id)}
                   >
                     <StatusIcon status={result?.status ?? "pending"} />
@@ -645,7 +645,7 @@ export function ApiTestClient() {
                   </div>
 
                   {isExpanded && (
-                    <div className="border-t px-4 py-3 bg-muted/20">
+                    <div className="border-t border-white/10 px-4 py-3 bg-white/4">
                       <div className="text-xs text-muted-foreground mb-1 font-mono">
                         {endpoint.method} {endpoint.pathTemplate.replace(/\{\{sellerId\}\}/g, config?.sellerId ?? "...")}
                       </div>

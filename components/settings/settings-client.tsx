@@ -360,7 +360,6 @@ export function SettingsClient() {
                 type="number"
                 step="0.01"
                 value={form.feePercent}
-                className="bg-background"
                 onChange={(event) =>
                   setForm((current) => (current ? { ...current, feePercent: Number(event.target.value) } : current))
                 }
@@ -374,7 +373,6 @@ export function SettingsClient() {
                 type="number"
                 step="0.01"
                 value={form.shippingCost}
-                className="bg-background"
                 onChange={(event) =>
                   setForm((current) => (current ? { ...current, shippingCost: Number(event.target.value) } : current))
                 }
@@ -387,14 +385,13 @@ export function SettingsClient() {
                 type="number"
                 step="0.01"
                 value={form.minProfitValue}
-                className="bg-background"
                 onChange={(event) =>
                   setForm((current) => (current ? { ...current, minProfitValue: Number(event.target.value) } : current))
                 }
               />
             </div>
 
-            <div className="rounded-md border border-border/50 bg-muted/20 px-3 py-2.5 text-sm text-muted-foreground">
+            <div className="rounded-md border border-white/10 bg-white/4 px-3 py-2.5 text-sm text-muted-foreground">
               VAT is fixed at <span className="font-medium text-foreground">15%</span> and auto-added on cost.
             </div>
 

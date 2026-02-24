@@ -178,7 +178,7 @@ export default function ShipmentsClient() {
                         />
                     </div>
 
-                    <div className="rounded-xl border border-border/40 overflow-hidden">
+                    <div className="rounded-xl border border-white/10 overflow-hidden">
                         <Table>
                             <TableHeader>
                                 <TableRow>

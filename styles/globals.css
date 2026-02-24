@@ -4,41 +4,41 @@
 
 @layer base {
   :root {
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 4%;
+    --foreground: 0 0% 96%;
 
-    --card: 222 47% 9%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 96%;
 
-    --popover: 222 47% 9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 96%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 180 85% 50%;
+    --primary-foreground: 0 0% 6%;
 
-    --secondary: 217 33% 14%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 92%;
 
-    --muted: 217 33% 14%;
-    --muted-foreground: 215 20% 55%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 60%;
 
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 0 0% 14%;
+    --accent-foreground: 0 0% 96%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 84% 58%;
     --destructive-foreground: 0 0% 98%;
 
-    --success: 142 71% 45%;
+    --success: 152 64% 45%;
     --success-foreground: 0 0% 98%;
 
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 6%;
 
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 217 91% 60%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 180 85% 50%;
 
-    --radius: 0.75rem;
+    --radius: 0.9rem;
   }
 
   .light {
@@ -84,25 +84,41 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sora), system-ui, sans-serif;
+    background-image:
+      radial-gradient(900px 500px at 15% -10%, rgba(20, 236, 220, 0.08), transparent 55%),
+      radial-gradient(800px 420px at 90% 5%, rgba(255, 255, 255, 0.04), transparent 60%);
+    background-attachment: fixed;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  .font-heading {
+    font-family: var(--font-space-grotesk), system-ui, sans-serif;
+    letter-spacing: -0.01em;
   }
 }
 
 @layer utilities {
   .glass {
-    @apply bg-card/80 backdrop-blur-xl border border-border/60;
+    @apply bg-black/40 backdrop-blur-2xl border border-white/10;
   }
 
   .glass-card {
-    @apply bg-card/90 backdrop-blur-lg border border-border/60 shadow-lg shadow-black/5;
+    @apply bg-card/60 backdrop-blur-2xl border border-white/10 shadow-[0_24px_70px_rgba(0,0,0,0.55)];
   }
 
   .surface-panel {
-    @apply bg-card border border-border/60 rounded-2xl shadow-sm;
+    @apply bg-card/80 border border-white/10 rounded-2xl shadow-[0_18px_40px_rgba(0,0,0,0.45)];
   }
 
   .surface-muted {
-    @apply bg-secondary/50 rounded-xl;
+    @apply bg-white/5 rounded-xl;
   }
 }
 

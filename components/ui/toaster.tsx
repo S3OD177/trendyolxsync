@@ -41,10 +41,10 @@ export function ToasterProvider({ children }: { children: ReactNode }) {
         {items.map((item) => (
           <div
             key={item.id}
-            className={`pointer-events-auto animate-slide-in-right rounded-xl border px-4 py-3 shadow-lg backdrop-blur-lg ${
+            className={`pointer-events-auto animate-slide-in-right rounded-xl border px-4 py-3 shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur-2xl ${
               item.variant === "destructive"
                 ? "border-red-500/30 bg-red-950/90 text-red-100"
-                : "border-border/60 bg-card/95 text-foreground"
+                : "border-white/10 bg-black/80 text-foreground"
             }`}
           >
             <div className="flex items-start gap-3">

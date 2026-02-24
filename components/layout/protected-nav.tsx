@@ -37,8 +37,8 @@ export function ProtectedNav({ mobile = false, collapsed = false }: { mobile?: b
               "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
               compact && "justify-center px-2",
               isActive
-                ? "bg-primary/10 text-primary shadow-sm"
-                : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                ? "bg-white/6 text-foreground border border-white/10"
+                : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
             )}
           >
             <Icon className={cn("h-[18px] w-[18px]", isActive && "text-primary")} />
